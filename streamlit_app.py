@@ -157,7 +157,7 @@ if submitted:
     st.session_state['timeline_choice'] = timeline_choice
     st.session_state['start_date'] = start_date
     st.session_state['end_date'] = end_date
-    st.session_state['filtered_df'] = df  # Initial load
+    st.session_state['filtered_df'] = filtered_df  # Initial load
 
 # --- Display and Filter Section ---
 if 'articles_df' in st.session_state:
