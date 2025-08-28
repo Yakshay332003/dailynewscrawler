@@ -5,18 +5,11 @@ import feedparser
 import requests
 import re
 import numpy as np
-import time
- 
-
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-import os
-
 import torch
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from transformers import pipeline
 from bs4 import BeautifulSoup
 
@@ -25,7 +18,6 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Constants and Model Loading ---
-token='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'
 CATEGORIES = {
     "Drug Pipeline": ['fda', 'trial', 'phase', 'approval', 'clinical', 'study', 'enrollment', 'efficacy'],
     "Investments": ['funding', 'investment', 'raises', 'venture', 'capital', 'backing', 'grant'],
@@ -41,11 +33,12 @@ category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
 
 # --- Helper functions ---
+
 @st.cache_resource(show_spinner=False)
 def load_summarizer():
-    #token = st.secrets.get("huggingface_api_token") or ""
-    
-    return pipeline("summarization", model="google/pegasus-xsum")
+    return pipeline("summarization", model="facebook/bart-large-cnn")
+
+summarizer = load_summarizer()
 
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
@@ -56,6 +49,8 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
 def fetch_latest_headlines_rss(keyword):
+    # Note: Google News RSS doesn't officially support pagination,
+    # so this is a simple fetch - to get more articles, repeat with date filters or multiple keywords.
     rss_url = f"https://news.google.com/rss/search?q={keyword}"
     try:
         response = requests.get(rss_url, verify=False, timeout=10)
@@ -65,10 +60,10 @@ def fetch_latest_headlines_rss(keyword):
         return []
 
     articles = []
-    for entry in feed.entries:
+    for entry in feed.entries:  # limit number of articles here
         try:
             published_at = datetime(*entry.published_parsed[:6])
-        except:
+        except Exception:
             published_at = None
         source = entry.get('source', {}).get('title', 'Unknown')
         source = str(source).lower().replace(".com", "")
@@ -98,15 +93,14 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
         return df[(df['PublishedDate'] >= start_date) & (df['PublishedDate'] <= end_date)]
     return df
 
-# Selenium to get final redirected URL
 def get_final_article_url_selenium(url):
+    # This is a placeholder; you can improve by adding real Selenium code if needed.
     try:
         response = requests.head(url, allow_redirects=True, timeout=10)
         return response.url
     except Exception:
-        return url  # fallback
+        return url
 
-# Extract article text (simple version)
 def extract_article_text(url):
     try:
         resp = requests.get(url, timeout=10)
@@ -116,12 +110,6 @@ def extract_article_text(url):
         return text
     except Exception:
         return ""
-
-@st.cache_resource(show_spinner=False)
-def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn")
-
-summarizer = load_summarizer()
 
 # --- Streamlit UI ---
 
@@ -142,6 +130,7 @@ with st.form("fetch_form"):
         if start_date > end_date:
             st.warning("⚠️ 'From' date cannot be after 'To' date.")
             st.stop()
+    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
     submitted = st.form_submit_button("Fetch News")
 
 if submitted:
@@ -154,7 +143,8 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            articles = fetch_latest_headlines_rss(keyword)
+            # fetch more articles if max_articles is large
+            articles = fetch_latest_headlines_rss(keyword, max_results=max_articles)
             all_articles.extend(articles)
 
     if not all_articles:
@@ -168,6 +158,7 @@ if submitted:
     st.session_state['timeline_choice'] = timeline_choice
     st.session_state['start_date'] = start_date
     st.session_state['end_date'] = end_date
+    st.session_state['filtered_df'] = None  # reset filters on new fetch
 
 if 'articles_df' in st.session_state:
     df = st.session_state['articles_df'].copy()
@@ -191,24 +182,36 @@ if 'articles_df' in st.session_state:
         category_filter = st.selectbox("🏷️ Category", available_categories)
 
     if st.button("Apply Filters"):
-        df = filter_by_timeline(df, timeline_choice, start_date, end_date)
+        filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
 
         if keyword_filter != "All":
-            df = df[df['Keyword'] == keyword_filter]
+            filtered_df = filtered_df[filtered_df['Keyword'] == keyword_filter]
         if source_filter != "All":
-            df = df[df['Source'].str.lower() == source_filter.lower()]
+            filtered_df = filtered_df[filtered_df['Source'].str.lower() == source_filter.lower()]
         if category_filter != "All":
-            df = df[df['Category'] == category_filter]
+            filtered_df = filtered_df[filtered_df['Category'] == category_filter]
 
-        if df.empty:
+        if filtered_df.empty:
             st.warning("⚠️ No articles match the selected filters.")
-        else:
-            st.session_state['filtered_df'] = df
+        st.session_state['filtered_df'] = filtered_df
 
-    # Show filtered or unfiltered
     filtered_df = st.session_state.get('filtered_df', df)
 
     st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
+
+    # Summarization callback function
+    def summarize_article(idx, url):
+        with st.spinner("Generating summary..."):
+            try:
+                final_url = get_final_article_url_selenium(url)
+                article_text = extract_article_text(final_url)
+                if len(article_text) > 1000:
+                    article_text = article_text[:1000]
+
+                summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+                st.session_state[f"summary_{idx}"] = summary
+            except Exception as e:
+                st.error(f"Failed to summarize: {e}")
 
     for idx, row in filtered_df.iterrows():
         with st.expander(f"🔹 {row['Headline']}", expanded=False):
@@ -218,22 +221,11 @@ if 'articles_df' in st.session_state:
             st.markdown(f"**Category:** {row['Category']}")
             st.markdown(f"[🔗 Read Full Article]({row['URL']})")
 
-            # Summarization section
             summary_key = f"summary_{idx}"
-            if st.button("📝 Summarize Article", key=summary_key):
-                with st.spinner("Generating summary..."):
-                    try:
-                        final_url = get_final_article_url_selenium(row['URL'])
-                        article_text = extract_article_text(final_url)
-                        if len(article_text) > 1000:
-                            article_text = article_text[:1000]
 
-                        summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-                        st.session_state[summary_key] = summary
-                    except Exception as e:
-                        st.error(f"Failed to summarize: {e}")
+            # Button uses on_click to update state
+            st.button("📝 Summarize Article", key=summary_key, on_click=summarize_article, args=(idx, row['URL']))
 
-            # Show summary if exists
             if summary_key in st.session_state:
                 st.markdown("**Summary:**")
                 st.write(st.session_state[summary_key])
