@@ -48,9 +48,7 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
-def fetch_latest_headlines_rss(keyword,max_results):
-    # Note: Google News RSS doesn't officially support pagination,
-    # so this is a simple fetch - to get more articles, repeat with date filters or multiple keywords.
+def fetch_latest_headlines_rss(keyword, max_results):
     rss_url = f"https://news.google.com/rss/search?q={keyword}"
     try:
         response = requests.get(rss_url, verify=False, timeout=10)
@@ -60,7 +58,7 @@ def fetch_latest_headlines_rss(keyword,max_results):
         return []
 
     articles = []
-    for entry in feed.entries[:max_results]:  # limit number of articles here
+    for entry in feed.entries[:max_results]:
         try:
             published_at = datetime(*entry.published_parsed[:6])
         except Exception:
@@ -94,7 +92,6 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    # This is a placeholder; you can improve by adding real Selenium code if needed.
     try:
         response = requests.head(url, allow_redirects=True, timeout=10)
         return response.url
@@ -116,7 +113,7 @@ def extract_article_text(url):
 st.set_page_config(page_title="📰 Keyword News Explorer with Summarization", layout="wide")
 st.title("📰 Keyword News Explorer with Summarization")
 
-# Input section
+# --- Input Section ---
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
     timeline_choice = st.selectbox("📆 Timeline", ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
@@ -133,6 +130,7 @@ with st.form("fetch_form"):
     max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
     submitted = st.form_submit_button("Fetch News")
 
+# --- Fetch and Process News ---
 if submitted:
     if not keywords_input.strip():
         st.warning("Please enter at least one keyword.")
@@ -143,7 +141,6 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            # fetch more articles if max_articles is large
             articles = fetch_latest_headlines_rss(keyword, max_results=max_articles)
             all_articles.extend(articles)
 
@@ -154,12 +151,14 @@ if submitted:
     df = pd.DataFrame(all_articles)
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
+    
     st.session_state['articles_df'] = df
     st.session_state['timeline_choice'] = timeline_choice
     st.session_state['start_date'] = start_date
     st.session_state['end_date'] = end_date
-    st.session_state['filtered_df'] = None  # reset filters on new fetch
+    st.session_state['filtered_df'] = df  # Initial load
 
+# --- Display and Filter Section ---
 if 'articles_df' in st.session_state:
     df = st.session_state['articles_df'].copy()
     timeline_choice = st.session_state.get('timeline_choice', "All")
@@ -195,14 +194,10 @@ if 'articles_df' in st.session_state:
             st.warning("⚠️ No articles match the selected filters.")
         st.session_state['filtered_df'] = filtered_df
 
-        filtered_df = st.session_state.get('filtered_df',df)
+    filtered_df = st.session_state.get('filtered_df', df)
+    st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
 
-
-
-
-        st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
-
-    # Summarization callback function
+    # --- Summarization Callback ---
     def summarize_article(idx, url):
         with st.spinner("Generating summary..."):
             try:
@@ -210,12 +205,15 @@ if 'articles_df' in st.session_state:
                 article_text = extract_article_text(final_url)
                 if len(article_text) > 1000:
                     article_text = article_text[:1000]
-
-                summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-                st.session_state[f"summary_{idx}"] = summary
+                if len(article_text.strip()) < 100:
+                    st.session_state[f"summary_{idx}"] = "Summary not available (article content too short)."
+                else:
+                    summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+                    st.session_state[f"summary_{idx}"] = summary
             except Exception as e:
-                st.error(f"Failed to summarize: {e}")
+                st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
 
+    # --- Article Display ---
     for idx, row in filtered_df.iterrows():
         with st.expander(f"🔹 {row['Headline']}", expanded=False):
             st.markdown(f"**Keyword:** {row['Keyword']}")
@@ -225,9 +223,8 @@ if 'articles_df' in st.session_state:
             st.markdown(f"[🔗 Read Full Article]({row['URL']})")
 
             summary_key = f"summary_{idx}"
-
-            # Button uses on_click to update state
-            st.button("📝 Summarize Article", key=summary_key, on_click=summarize_article, args=(idx, row['URL']))
+            if st.button("📝 Summarize Article", key=f"summarize_btn_{idx}"):
+                summarize_article(idx, row['URL'])
 
             if summary_key in st.session_state:
                 st.markdown("**Summary:**")
