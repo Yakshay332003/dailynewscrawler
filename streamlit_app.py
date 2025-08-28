@@ -195,9 +195,12 @@ if 'articles_df' in st.session_state:
             st.warning("⚠️ No articles match the selected filters.")
         st.session_state['filtered_df'] = filtered_df
 
-    filtered_df = st.session_state.get('filtered_df', df)
+        filtered_df = st.session_state.get('filtered_df',df)
 
-    st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
+
+
+
+        st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
 
     # Summarization callback function
     def summarize_article(idx, url):
