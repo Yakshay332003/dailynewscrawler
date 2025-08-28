@@ -48,7 +48,7 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
-def fetch_latest_headlines_rss(keyword):
+def fetch_latest_headlines_rss(keyword,max_results):
     # Note: Google News RSS doesn't officially support pagination,
     # so this is a simple fetch - to get more articles, repeat with date filters or multiple keywords.
     rss_url = f"https://news.google.com/rss/search?q={keyword}"
@@ -60,7 +60,7 @@ def fetch_latest_headlines_rss(keyword):
         return []
 
     articles = []
-    for entry in feed.entries:  # limit number of articles here
+    for entry in feed.entries[:max_results]:  # limit number of articles here
         try:
             published_at = datetime(*entry.published_parsed[:6])
         except Exception:
