@@ -151,6 +151,7 @@ if submitted:
     df = pd.DataFrame(all_articles)
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
+    filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
     
     st.session_state['articles_df'] = df
     st.session_state['timeline_choice'] = timeline_choice
@@ -192,6 +193,7 @@ if 'articles_df' in st.session_state:
 
         if filtered_df.empty:
             st.warning("⚠️ No articles match the selected filters.")
+        
         st.session_state['filtered_df'] = filtered_df
 
     filtered_df = st.session_state.get('filtered_df', df)
