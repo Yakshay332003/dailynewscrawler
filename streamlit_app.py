@@ -100,20 +100,11 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
 
 # Selenium to get final redirected URL
 def get_final_article_url_selenium(url):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-
-    driver = webdriver.Chrome(options=chrome_options)
     try:
-        driver.get(url)
-        time.sleep(4)  # adjust if needed
-        final_url = driver.current_url
-    finally:
-        driver.quit()
-
-    return final_url
+        response = requests.head(url, allow_redirects=True, timeout=10)
+        return response.url
+    except Exception:
+        return url  # fallback
 
 # Extract article text (simple version)
 def extract_article_text(url):
