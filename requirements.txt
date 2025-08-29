@@ -15,6 +15,6 @@ undetected_chromedriver
 httpx
 playwright
 bs4
-
+unstructured
 langchain-community
 
