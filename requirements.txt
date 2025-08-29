@@ -14,3 +14,4 @@ webdriver-manager
 undetected_chromedriver
 httpx
 playwright
+bs4
