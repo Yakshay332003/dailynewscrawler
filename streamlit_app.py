@@ -8,12 +8,13 @@ from urllib.parse import quote
 import logging
 import numpy as np
 from langchain.document_loaders import UnstructuredURLLoader
-
+from langchain.llms import HuggingFacePipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
 import torch
-
+from langchain.tools import Tool
 from transformers import pipeline
 from bs4 import BeautifulSoup
 import httpx
@@ -47,6 +48,25 @@ def load_summarizer():
 summarizer = load_summarizer()
 
 # -------------------------------
+
+
+summarizer_pipeline = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+llm = HuggingFacePipeline(pipeline=summarizer_pipeline)
+def read_url(url: str) -> str:
+    try:
+        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.text, 'html.parser')
+        paragraphs = soup.find_all('p')
+        text = "\n".join(p.get_text() for p in paragraphs)
+        return text[:4000]  # Limit for context window
+    except Exception as e:
+        return f"Error fetching URL: {e}"
+
+url_reader_tool = Tool(
+    name="URL Reader",
+    func=read_url,
+    description="Fetches and returns the readable content of a news article from a URL"
+)
 def resolve_google_news_url(google_news_url):
     try:
         # Allow redirects to follow
@@ -58,6 +78,12 @@ def resolve_google_news_url(google_news_url):
 
 # --- Helper Functions
 # -------------------------------
+def summarize_url(url):
+    content = read_url(url)
+    if "Error" in content:
+        return content
+    summary = summarizer_pipeline(content[:1024])[0]['summary_text']
+    return summary
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
     headline_embedding = model.encode([text])
@@ -250,8 +276,7 @@ if 'articles_df' in st.session_state:
     def summarize_article(idx, url):
         with st.spinner("Generating summary..."):
             try:
-                final_url = get_final_article_url_selenium(url)
-                article_text = extract_article_text(final_url)
+                article_text= summarize_url(url)
                 if len(article_text) > 1000:
                     article_text = article_text[:1000]
                 if len(article_text.strip()) < 100:
