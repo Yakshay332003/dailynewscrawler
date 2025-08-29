@@ -155,13 +155,15 @@ if 'articles_df' in st.session_state:
 
     col1, col2 = st.columns(2)
     with col1:
-        keyword_filter = st.multiselect("🔑 Keyword(s)", options=available_keywords, default=available_keywords)
+        keyword_filter = st.selectbox("🔑 Keyword", options=["All"] + available_keywords)
+        
     with col2:
-        source_filter = st.multiselect("🔗 Source(s)", options=available_sources, default=available_sources)
+        source_filter = st.selectbox("🔗 Source", options=["All"] + available_sources)
 
     col3, col4 = st.columns(2)
     with col3:
-        category_filter = st.multiselect("🏷️ Category(s)", options=available_categories, default=available_categories)
+        
+        category_filter = st.selectbox("🏷️ Category", options=["All"] + available_categories)
     with col4:
         timeline_choice = st.selectbox("📆 Timeline", timeline_options)
 
