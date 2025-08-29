@@ -97,14 +97,22 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    api_url = f"https://unshorten.me/json/{url}"
     try:
-        r = httpx.get(api_url)
-        data = r.json()
-        return data.get("resolved_url", url)
+        response = httpx.get(google_news_url, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Look for meta refresh tag
+        meta = soup.find("meta", attrs={"http-equiv": "refresh"})
+        if meta and "content" in meta.attrs:
+            content = meta["content"]
+            # content looks like "0; URL=https://www.actual-site.com/article"
+            if "url=" in content.lower():
+                real_url = content.split("URL=")[-1].strip()
+                return real_url
+        return google_news_url
     except Exception as e:
-        print("Error:", e)
-        return url
+        print("Failed to resolve real URL:", e)
+        return google_news_url
 
 def extract_article_text(url):
     try:
