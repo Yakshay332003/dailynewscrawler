@@ -4,11 +4,9 @@ from datetime import datetime, timedelta
 import feedparser
 import requests
 import re
-from playwright.sync_api import sync_playwrightimport numpy as np
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
+
+import numpy as np
+
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
