@@ -86,7 +86,8 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
         date_range = [None]  # No specific filter
 
     for date_val in date_range:
-        query = f'{keyword} after:{date_val} before:{date_val + timedelta(days=1)}' if date_val else keyword
+        query = f'{keyword} after:{start_date - timedelta(days=1)} before:{end_date + timedelta(days=1)}'
+
         rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-IN&gl=IN&ceid=IN:en"
 
         try:
@@ -167,7 +168,7 @@ st.title("📰 Keyword News Explorer with Summarization")
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
+    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=1000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
     start_date = end_date = None
     if timeline_choice == "Custom Range":
