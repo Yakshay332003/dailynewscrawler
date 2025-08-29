@@ -221,7 +221,7 @@ if 'articles_df' in st.session_state:
                 if len(article_text) > 1000:
                     article_text = article_text[:1000]
                 if len(article_text.strip()) < 100:
-                    st.session_state[f"summary_{idx}"] = article_text
+                    st.session_state[f"summary_{idx}"] = final_url
                 else:
                     summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
                     st.session_state[f"summary_{idx}"] = summary
