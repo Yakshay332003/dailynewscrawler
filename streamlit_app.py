@@ -50,23 +50,8 @@ summarizer = load_summarizer()
 # -------------------------------
 
 
-summarizer_pipeline = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
-llm = HuggingFacePipeline(pipeline=summarizer_pipeline)
-def read_url(url: str) -> str:
-    try:
-        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        soup = BeautifulSoup(response.text, 'html.parser')
-        paragraphs = soup.find_all('p')
-        text = "\n".join(p.get_text() for p in paragraphs)
-        return text[:4000]  # Limit for context window
-    except Exception as e:
-        return f"Error fetching URL: {e}"
 
-url_reader_tool = Tool(
-    name="URL Reader",
-    func=read_url,
-    description="Fetches and returns the readable content of a news article from a URL"
-)
+
 def resolve_google_news_url(google_news_url):
     try:
         # Allow redirects to follow
@@ -78,11 +63,7 @@ def resolve_google_news_url(google_news_url):
 
 # --- Helper Functions
 # -------------------------------
-def summarize_url(url):
-    content = read_url(url)
-    if "Error" in content:
-        return content
-    summary = summarizer_pipeline(content[:1024])[0]['summary_text']
+
     return summary
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
