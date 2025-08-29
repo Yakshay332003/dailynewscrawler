@@ -93,21 +93,11 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    options = uc.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = uc.Chrome(options=options)
-
     try:
-        driver.get(url)
-        time.sleep(5)
-        final_url = driver.current_url
-    finally:
-        driver.quit()
-
-    return final_url
+        response = requests.get(url, allow_redirects=True, timeout=10)
+        return response.url
+    except Exception as e:
+        return f"Error: {e}"
 
 def extract_article_text(url):
     try:
@@ -224,7 +214,7 @@ if 'articles_df' in st.session_state:
                 if len(article_text.strip()) < 100:
                     st.session_state[f"summary_{idx}"] = final_url
                 else:
-                    #summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+                    summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
                     st.session_state[f"summary_{idx}"] = article_text
             except Exception as e:
                 st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
