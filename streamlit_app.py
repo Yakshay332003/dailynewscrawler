@@ -8,8 +8,8 @@ from urllib.parse import quote
 import logging
 import numpy as np
 from langchain.document_loaders import UnstructuredURLLoader
-from langchain.llms import HuggingFacePipeline
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+
+
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
