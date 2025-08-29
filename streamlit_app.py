@@ -16,7 +16,7 @@ import undetected_chromedriver as uc
 import torch
 from transformers import pipeline
 from bs4 import BeautifulSoup
-
+import httpx
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -93,23 +93,13 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    options = uc.ChromeOptions()
-    
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    
-
-    driver = uc.Chrome(options=options)
-
     try:
-        driver.get(url)
-        time.sleep(5)
-        final_url = driver.current_url
-    finally:
-        driver.quit()
-
-    return final_url
+        with httpx.Client(follow_redirects=True, timeout=10) as client:
+            response = client.get(url)
+            return response.url
+    except Exception as e:
+        print("Error:", e)
+        return None
 
 def extract_article_text(url):
     try:
