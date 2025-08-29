@@ -63,7 +63,7 @@ def fetch_latest_headlines_rss(keyword, max_results):
         return []
 
     articles = []
-    for entry in feed.entries[:max_results]:
+    for entry in feed.entries:
         try:
             published_at = datetime(*entry.published_parsed[:6])
         except Exception:
