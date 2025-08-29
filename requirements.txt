@@ -14,6 +14,6 @@ urllib3>=2.2.2
 httpx
 langchain-community
 bs4
-
+unstructured
 
 
