@@ -12,7 +12,7 @@ selenium>=4.20.0
 urllib3>=2.2.2
 
 httpx
-
+langchain-community
 bs4
 
 
