@@ -13,7 +13,6 @@ import time
 
 import torch
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from transformers import pipeline
 from bs4 import BeautifulSoup
@@ -30,8 +29,12 @@ CATEGORIES = {
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
 
+@st.cache_resource(show_spinner=False)
+def load_sentence_model():
+    torch_dtype = torch.float32  # force CPU-compatible type
+    return SentenceTransformer('all-MiniLM-L6-v2', device='cpu', dtype=torch_dtype)
 
-model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+model = load_sentence_model()
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
