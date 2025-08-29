@@ -144,20 +144,42 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
 
     return articles[:max_results]
 
-def get_final_article_url_selenium(url):
+def resolve_final_url(url, max_wait=5):
+    import time
     try:
-        response = httpx.get(url, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        meta = soup.find("meta", attrs={"http-equiv": "refresh"})
-        if meta and "content" in meta.attrs:
-            content = meta["content"]
-            if "url=" in content.lower():
-                real_url = content.split("URL=")[-1].strip()
-                return real_url
-        return url
+        start_time = time.time()
+        current_url = url
+
+        while True:
+            response = requests.get(current_url, timeout=10)
+            # Check if page contains meta refresh redirect
+            soup = BeautifulSoup(response.text, 'html.parser')
+            meta = soup.find("meta", attrs={"http-equiv": "refresh"})
+            if meta and "content" in meta.attrs:
+                content = meta["content"]
+                # Extract URL after 'url=' ignoring case
+                import re
+                match = re.search(r'url=([^;]+)', content, re.I)
+                if match:
+                    next_url = match.group(1).strip().strip("'\"")
+                    if next_url == current_url:
+                        # Redirect URL same as current - break loop
+                        break
+                    current_url = next_url
+                    # Check time elapsed
+                    if time.time() - start_time > max_wait:
+                        break
+                    # Wait briefly before next request
+                    time.sleep(1)
+                    continue
+            # No meta refresh redirect found, final URL reached
+            break
+
+        return response.url if response.url else current_url
     except Exception as e:
-        print("Failed to resolve real URL:", e)
+        print(f"Error resolving final url: {e}")
         return url
+
 
 def extract_article_text(url):
     try:
@@ -257,11 +279,12 @@ if 'articles_df' in st.session_state:
     def summarize_article(idx, url):
         with st.spinner("Generating summary..."):
             try:
-                article_text= summarize_url(url)
+                final_url=resolve_final_url(url)
+                article_text=extract_article_text(url)
                 if len(article_text) > 1000:
                     article_text = article_text[:1000]
                 if len(article_text.strip()) < 100:
-                    st.session_state[f"summary_{idx}"] = url
+                    st.session_state[f"summary_{idx}"] = final_url
                 else:
                     summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
                     st.session_state[f"summary_{idx}"] = summary
