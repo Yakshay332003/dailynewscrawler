@@ -131,7 +131,7 @@ st.title("📰 Keyword News Explorer with Summarization")
 # --- Input Section ---
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
+    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=200, step=10)
     submitted = st.form_submit_button("Fetch News")
 
 if submitted:
