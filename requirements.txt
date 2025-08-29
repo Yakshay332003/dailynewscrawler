@@ -12,3 +12,4 @@ selenium>=4.20.0
 urllib3>=2.2.2
 webdriver-manager
 undetected_chromedriver
+httpx
