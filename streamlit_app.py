@@ -11,7 +11,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
 
-import torch
+
 from transformers import pipeline
 from bs4 import BeautifulSoup
 import httpx
@@ -27,8 +27,8 @@ CATEGORIES = {
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
