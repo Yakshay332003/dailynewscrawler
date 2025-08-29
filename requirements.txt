@@ -17,3 +17,4 @@ playwright
 bs4
 langchain
 langchain-community
+unstructure
