@@ -124,7 +124,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
             elif timeline_choice == "Custom Range" and start_date and end_date:
                 articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
 
-    return articles[:max_results]x_results]
+    return articles[:max_results]
 
 def get_final_article_url_selenium(url):
     try:
