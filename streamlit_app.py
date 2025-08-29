@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 import feedparser
 import requests
 import re
-
+from urllib.parse import quote
+import logging
 import numpy as np
 
 from sentence_transformers import SentenceTransformer
@@ -54,22 +55,28 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
 def fetch_latest_headlines_rss(keyword, max_results):
-    rss_url = f"https://news.google.com/rss/search?q={keyword}"
+    rss_url = f"https://news.google.com/rss/search?q={quote(keyword)}"
     try:
-        response = requests.get(rss_url, verify=False, timeout=10)
+        response = requests.get(rss_url, timeout=10)
         response.raise_for_status()
         feed = feedparser.parse(response.content)
-    except Exception:
+    except requests.RequestException as e:
+        logging.error(f"Request failed: {e}")
+        return []
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
         return []
 
     articles = []
-    for entry in feed.entries:
+    for entry in feed.entries[:max_results]:
         try:
-            published_at = datetime(*entry.published_parsed[:6])
+            published_at = datetime(*entry.published_parsed[:6]) if entry.get("published_parsed") else None
         except Exception:
             published_at = None
+
         source = entry.get('source', {}).get('title', 'Unknown')
         source = str(source).lower().replace(".com", "")
+
         articles.append({
             'Keyword': keyword,
             'Headline': entry.title,
@@ -77,8 +84,8 @@ def fetch_latest_headlines_rss(keyword, max_results):
             'Published on': published_at,
             'Source': source
         })
-    return articles
 
+    return articles
 def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     df = df.copy()
     df['PublishedDate'] = df['Published on'].dt.date
