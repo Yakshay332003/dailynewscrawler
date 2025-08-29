@@ -92,21 +92,21 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+
+    driver = webdriver.Chrome( options=chrome_options)
+
     try:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
-
+        time.sleep(5)  # Wait for redirect to happen (adjust if needed)
         final_url = driver.current_url
+    finally:
         driver.quit()
-        return final_url
-    except Exception as e:
-        print("Selenium error:", e)
-        return url
+
+    return final_url
 
 def extract_article_text(url):
     try:
