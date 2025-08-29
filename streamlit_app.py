@@ -56,12 +56,11 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
-
 def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
 
-    # Determine the date range for fetching
+    # Determine the date range based on timeline_choice
     if timeline_choice == "Today":
         date_range = [today]
     elif timeline_choice == "Yesterday":
@@ -74,14 +73,10 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
         date_range = pd.date_range(start=start_date, end=end_date).to_pydatetime().tolist()
         date_range = [d.date() for d in date_range]
     else:
-        date_range = [None]
+        date_range = [None]  # No specific filter
 
     for date_val in date_range:
-        if date_val:
-            query = f'{keyword} after:{date_val} before:{date_val + timedelta(days=1)}'
-        else:
-            query = keyword
-
+        query = f'{keyword} after:{date_val} before:{date_val + timedelta(days=1)}' if date_val else keyword
         rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-IN&gl=IN&ceid=IN:en"
 
         try:
@@ -112,7 +107,6 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
 
     return articles[:max_results]
 
-
 def get_final_article_url_selenium(url):
     try:
         response = httpx.get(url, timeout=10)
@@ -121,12 +115,12 @@ def get_final_article_url_selenium(url):
         if meta and "content" in meta.attrs:
             content = meta["content"]
             if "url=" in content.lower():
-                return content.split("URL=")[-1].strip()
+                real_url = content.split("URL=")[-1].strip()
+                return real_url
         return url
     except Exception as e:
         print("Failed to resolve real URL:", e)
         return url
-
 
 def extract_article_text(url):
     try:
@@ -138,7 +132,6 @@ def extract_article_text(url):
         return text
     except Exception:
         return ""
-
 
 # -------------------------------
 # --- Streamlit App
@@ -155,9 +148,6 @@ with st.form("fetch_form"):
     if timeline_choice == "Custom Range":
         start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
         end_date = st.date_input("To Date", value=datetime.now().date())
-        if start_date > end_date:
-            st.warning("⚠️ 'From Date' cannot be after 'To Date'")
-            st.stop()
     submitted = st.form_submit_button("Fetch News")
 
 # Fetch Articles
@@ -194,10 +184,42 @@ if submitted:
 
 # Display Section
 if 'articles_df' in st.session_state:
-    df = st.session_state['filtered_df'].copy()
-    st.markdown(f"### 📄 Showing {len(df)} articles")
+    df = st.session_state['articles_df'].copy()
+    st.markdown("---")
+    st.subheader("🧰 Filters (Keyword, Source, Category only)")
 
-    # Summarization Function
+    available_keywords = sorted(df['Keyword'].dropna().unique())
+    available_sources = sorted(df['Source'].dropna().unique())
+    available_categories = sorted(df['Category'].dropna().unique())
+
+    col1, col2 = st.columns(2)
+    with col1:
+        keyword_filter = st.selectbox("🔑 Keyword", options=["All"] + available_keywords)
+    with col2:
+        source_filter = st.selectbox("🔗 Source", options=["All"] + available_sources)
+
+    col3, _ = st.columns(2)
+    with col3:
+        category_filter = st.selectbox("🏷️ Category", options=["All"] + available_categories)
+
+    if st.button("Apply Filters"):
+        filtered_df = df.copy()
+
+        if keyword_filter != "All":
+            filtered_df = filtered_df[filtered_df['Keyword'] == keyword_filter]
+
+        if source_filter != "All":
+            filtered_df = filtered_df[filtered_df['Source'] == source_filter]
+
+        if category_filter != "All":
+            filtered_df = filtered_df[filtered_df['Category'] == category_filter]
+
+        filtered_df.sort_values(by="Published on", ascending=False, inplace=True)
+        st.session_state['filtered_df'] = filtered_df
+
+    filtered_df = st.session_state.get('filtered_df', df)
+    st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
+
     def summarize_article(idx, url):
         with st.spinner("Generating summary..."):
             try:
@@ -213,8 +235,7 @@ if 'articles_df' in st.session_state:
             except Exception as e:
                 st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
 
-    # Display Articles
-    for idx, row in df.iterrows():
+    for idx, row in filtered_df.iterrows():
         with st.expander(f"🔹 {row['Headline']}", expanded=False):
             st.markdown(f"**Keyword:** {row['Keyword']}")
             st.markdown(f"**Published on:** {row['Published on'].strftime('%Y-%m-%d %H:%M') if pd.notnull(row['Published on']) else 'N/A'}")
