@@ -11,7 +11,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-
+import time
+import undetected_chromedriver as uc
 import torch
 from transformers import pipeline
 from bs4 import BeautifulSoup
@@ -92,16 +93,16 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
+    options = uc.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
 
-    driver = webdriver.Chrome( options=chrome_options)
+    driver = uc.Chrome(options=options)
 
     try:
         driver.get(url)
-        time.sleep(5)  # Wait for redirect to happen (adjust if needed)
+        time.sleep(5)
         final_url = driver.current_url
     finally:
         driver.quit()
