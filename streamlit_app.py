@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import feedparser
 import requests
 import re
+from playwright.sync_api import sync_playwright
 import numpy as np
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -93,13 +94,13 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    try:
-        with httpx.Client(follow_redirects=True, timeout=10) as client:
-            response = client.get(url)
-            return response.url
-    except Exception as e:
-        print("Error:", e)
-        return None
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url)
+        final_url = page.url
+        browser.close()
+        return final_url
 
 def extract_article_text(url):
     try:
