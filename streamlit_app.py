@@ -86,7 +86,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
         date_range = [None]  # No specific filter
 
     for date_val in date_range:
-        query = f'{keyword} after:{start_date - timedelta(days=1)} before:{end_date + timedelta(days=1)}'
+        query = f'{keyword} after:{date_val - timedelta(days=1)} before:{date_val + timedelta(days=1)}'
 
         rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-IN&gl=IN&ceid=IN:en"
 
