@@ -142,8 +142,8 @@ st.title("📰 Keyword News Explorer with Summarization")
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=200, step=10)
-    timeline_choice = st.selectbox("📆 Fetch Timeline", ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
+    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
+    timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
     start_date = end_date = None
     if timeline_choice == "Custom Range":
         start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
@@ -186,7 +186,7 @@ if submitted:
 if 'articles_df' in st.session_state:
     df = st.session_state['articles_df'].copy()
     st.markdown("---")
-    st.subheader("🧰 Filters (Keyword, Source, Category only)")
+    st.subheader("🧰 Filters")
 
     available_keywords = sorted(df['Keyword'].dropna().unique())
     available_sources = sorted(df['Source'].dropna().unique())
