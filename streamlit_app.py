@@ -5,7 +5,10 @@ import feedparser
 import requests
 import re
 import numpy as np
-
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -90,9 +93,19 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
 
 def get_final_article_url_selenium(url):
     try:
-        response = requests.head(url, allow_redirects=True, timeout=10)
-        return response.url
-    except Exception:
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.get(url)
+
+        final_url = driver.current_url
+        driver.quit()
+        return final_url
+    except Exception as e:
+        print("Selenium error:", e)
         return url
 
 def extract_article_text(url):
