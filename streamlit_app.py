@@ -93,11 +93,23 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
+    options = uc.ChromeOptions()
+    
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    
+
+    driver = uc.Chrome(options=options)
+
     try:
-        response = requests.get(url, allow_redirects=True, timeout=10)
-        return response.url
-    except Exception as e:
-        return f"Error: {e}"
+        driver.get(url)
+        time.sleep(5)
+        final_url = driver.current_url
+    finally:
+        driver.quit()
+
+    return final_url
 
 def extract_article_text(url):
     try:
