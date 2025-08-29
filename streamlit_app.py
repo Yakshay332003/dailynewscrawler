@@ -177,13 +177,17 @@ if 'articles_df' in st.session_state:
 
     if st.button("Apply Filters"):
         filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
+        if keyword_filter != "All":
+            filtered_df = filtered_df[filtered_df['Keyword'] == keyword_filter]
 
-        if keyword_filter:
-            filtered_df = filtered_df[filtered_df['Keyword'].isin(keyword_filter)]
-        if source_filter:
-            filtered_df = filtered_df[filtered_df['Source'].isin(source_filter)]
-        if category_filter:
-            filtered_df = filtered_df[filtered_df['Category'].isin(category_filter)]
+        if source_filter != "All":
+            filtered_df = filtered_df[filtered_df['Source'] == source_filter]
+
+        if category_filter != "All":
+            filtered_df = filtered_df[filtered_df['Category'] == category_filter]
+
+
+        
 
         filtered_df.sort_values(by="Published on", ascending=False, inplace=True)
 
