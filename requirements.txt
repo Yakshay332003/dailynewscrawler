@@ -15,3 +15,4 @@ undetected_chromedriver
 httpx
 playwright
 bs4
+langchain
