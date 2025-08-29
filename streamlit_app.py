@@ -224,8 +224,8 @@ if 'articles_df' in st.session_state:
                 if len(article_text.strip()) < 100:
                     st.session_state[f"summary_{idx}"] = final_url
                 else:
-                    summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-                    st.session_state[f"summary_{idx}"] = summary
+                    #summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+                    st.session_state[f"summary_{idx}"] = article_text
             except Exception as e:
                 st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
 
