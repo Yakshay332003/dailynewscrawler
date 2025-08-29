@@ -7,6 +7,7 @@ import re
 from urllib.parse import quote
 import logging
 import numpy as np
+from langchain.document_loaders import UnstructuredURLLoader
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -124,14 +125,11 @@ def get_final_article_url_selenium(url):
 
 def extract_article_text(url):
     try:
-        resp = requests.get(url, timeout=10)
-        time.sleep(10)
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        paragraphs = soup.find_all('p')
-        text = "\n".join([p.get_text() for p in paragraphs if len(p.get_text()) > 20])
-        return text
-    except Exception:
-        return ""
+        loader = UnstructuredURLLoader(urls=[url])
+        docs = loader.load()
+        return docs[0].page_content if docs else ""
+    except Exception as e:
+        return f"Error extracting content: {e}"
 
 # -------------------------------
 # --- Streamlit App
