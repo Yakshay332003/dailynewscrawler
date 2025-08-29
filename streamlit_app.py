@@ -11,6 +11,9 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
 
+import torch
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from transformers import pipeline
 from bs4 import BeautifulSoup
@@ -28,7 +31,7 @@ CATEGORIES = {
 }
 
 
-model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
