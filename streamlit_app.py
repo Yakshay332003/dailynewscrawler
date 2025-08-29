@@ -98,7 +98,7 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
 
 def get_final_article_url_selenium(url):
     try:
-        response = httpx.get(google_news_url, timeout=10)
+        response = httpx.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         # Look for meta refresh tag
@@ -109,10 +109,10 @@ def get_final_article_url_selenium(url):
             if "url=" in content.lower():
                 real_url = content.split("URL=")[-1].strip()
                 return real_url
-        return google_news_url
+        return url
     except Exception as e:
         print("Failed to resolve real URL:", e)
-        return google_news_url
+        return url
 
 def extract_article_text(url):
     try:
