@@ -13,7 +13,6 @@ import torch
 from transformers import pipeline
 from bs4 import BeautifulSoup
 
-# Disable SSL warnings
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -31,8 +30,6 @@ model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
-
-# --- Helper functions ---
 
 @st.cache_resource(show_spinner=False)
 def load_summarizer():
@@ -109,28 +106,15 @@ def extract_article_text(url):
         return ""
 
 # --- Streamlit UI ---
-
 st.set_page_config(page_title="📰 Keyword News Explorer with Summarization", layout="wide")
 st.title("📰 Keyword News Explorer with Summarization")
 
 # --- Input Section ---
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    timeline_choice = st.selectbox("📆 Timeline", ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
-    start_date = end_date = None
-    if timeline_choice == "Custom Range":
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input("From Date")
-        with col2:
-            end_date = st.date_input("To Date")
-        if start_date > end_date:
-            st.warning("⚠️ 'From' date cannot be after 'To' date.")
-            st.stop()
     max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=100, step=10)
     submitted = st.form_submit_button("Fetch News")
 
-# --- Fetch and Process News ---
 if submitted:
     if not keywords_input.strip():
         st.warning("Please enter at least one keyword.")
@@ -151,49 +135,59 @@ if submitted:
     df = pd.DataFrame(all_articles)
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
-    filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
-    
+
+    df.sort_values(by="Published on", ascending=False, inplace=True)
+
     st.session_state['articles_df'] = df
-    st.session_state['timeline_choice'] = timeline_choice
-    st.session_state['start_date'] = start_date
-    st.session_state['end_date'] = end_date
-    st.session_state['filtered_df'] = filtered_df  # Initial load
+    st.session_state['filtered_df'] = df  # Initial load
 
 # --- Display and Filter Section ---
 if 'articles_df' in st.session_state:
     df = st.session_state['articles_df'].copy()
-    timeline_choice = st.session_state.get('timeline_choice', "All")
-    start_date = st.session_state.get('start_date', None)
-    end_date = st.session_state.get('end_date', None)
 
     st.markdown("---")
     st.subheader("🧰 Filters")
 
-    available_keywords = ["All"] + sorted(df['Keyword'].unique())
-    available_sources = ["All"] + sorted(df['Source'].dropna().unique())
-    available_categories = ["All"] + sorted(df['Category'].dropna().unique())
+    available_keywords = sorted(df['Keyword'].dropna().unique())
+    available_sources = sorted(df['Source'].dropna().unique())
+    available_categories = sorted(df['Category'].dropna().unique())
+    timeline_options = ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"]
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        keyword_filter = st.selectbox("🔑 Keyword", available_keywords)
+        keyword_filter = st.multiselect("🔑 Keyword(s)", options=available_keywords, default=available_keywords)
     with col2:
-        source_filter = st.selectbox("🔗 Source", available_sources)
+        source_filter = st.multiselect("🔗 Source(s)", options=available_sources, default=available_sources)
+
+    col3, col4 = st.columns(2)
     with col3:
-        category_filter = st.selectbox("🏷️ Category", available_categories)
+        category_filter = st.multiselect("🏷️ Category(s)", options=available_categories, default=available_categories)
+    with col4:
+        timeline_choice = st.selectbox("📆 Timeline", timeline_options)
+
+        start_date = end_date = None
+        if timeline_choice == "Custom Range":
+            start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
+            end_date = st.date_input("To Date", value=datetime.now().date())
+            if start_date > end_date:
+                st.warning("⚠️ 'From' date cannot be after 'To' date.")
+                st.stop()
 
     if st.button("Apply Filters"):
         filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
 
-        if keyword_filter != "All":
-            filtered_df = filtered_df[filtered_df['Keyword'] == keyword_filter]
-        if source_filter != "All":
-            filtered_df = filtered_df[filtered_df['Source'].str.lower() == source_filter.lower()]
-        if category_filter != "All":
-            filtered_df = filtered_df[filtered_df['Category'] == category_filter]
+        if keyword_filter:
+            filtered_df = filtered_df[filtered_df['Keyword'].isin(keyword_filter)]
+        if source_filter:
+            filtered_df = filtered_df[filtered_df['Source'].isin(source_filter)]
+        if category_filter:
+            filtered_df = filtered_df[filtered_df['Category'].isin(category_filter)]
+
+        filtered_df.sort_values(by="Published on", ascending=False, inplace=True)
 
         if filtered_df.empty:
             st.warning("⚠️ No articles match the selected filters.")
-        
+
         st.session_state['filtered_df'] = filtered_df
 
     filtered_df = st.session_state.get('filtered_df', df)
