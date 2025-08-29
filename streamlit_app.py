@@ -47,6 +47,15 @@ def load_summarizer():
 summarizer = load_summarizer()
 
 # -------------------------------
+def resolve_google_news_url(google_news_url):
+    try:
+        # Allow redirects to follow
+        response = requests.get(google_news_url, timeout=10)
+        return response.url  # Final redirected URL
+    except Exception as e:
+        logging.error(f"Error resolving original URL: {e}")
+        return google_news_url  # fallback to original
+
 # --- Helper Functions
 # -------------------------------
 def classify_with_embeddings(headline):
@@ -93,7 +102,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
                 articles.append({
                     'Keyword': keyword,
                     'Headline': entry.title,
-                    'URL': entry.link,
+                    'URL': resolve_google_news_url(entry.link),
                     'Published on': published_at,
                     'Source': source
                 })
