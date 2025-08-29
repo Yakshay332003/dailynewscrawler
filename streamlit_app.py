@@ -94,13 +94,14 @@ def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
     return df
 
 def get_final_article_url_selenium(url):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(url)
-        final_url = page.url
-        browser.close()
-        return final_url
+    api_url = f"https://unshorten.me/json/{url}"
+    try:
+        r = httpx.get(api_url)
+        data = r.json()
+        return data.get("resolved_url", url)
+    except Exception as e:
+        print("Error:", e)
+        return url
 
 def extract_article_text(url):
     try:
