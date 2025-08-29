@@ -11,9 +11,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
-
 import torch
-
 
 from transformers import pipeline
 from bs4 import BeautifulSoup
@@ -21,7 +19,9 @@ import httpx
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- Constants and Model Loading ---
+# -------------------------------
+# --- Constants and Model Loading
+# -------------------------------
 CATEGORIES = {
     "Drug Pipeline": ['fda', 'trial', 'phase', 'approval', 'clinical', 'study', 'enrollment', 'efficacy'],
     "Investments": ['funding', 'investment', 'raises', 'venture', 'capital', 'backing', 'grant'],
@@ -32,7 +32,6 @@ CATEGORIES = {
 
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
-    
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 model = load_sentence_model()
@@ -46,6 +45,9 @@ def load_summarizer():
 
 summarizer = load_summarizer()
 
+# -------------------------------
+# --- Helper Functions
+# -------------------------------
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
     headline_embedding = model.encode([text])
@@ -54,65 +56,70 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
-def fetch_latest_headlines_rss(keyword, max_results):
-    rss_url = f"https://news.google.com/rss/search?q={quote(keyword)}"
-    try:
-        response = requests.get(rss_url, timeout=10)
-        response.raise_for_status()
-        feed = feedparser.parse(response.content)
-    except requests.RequestException as e:
-        logging.error(f"Request failed: {e}")
-        return []
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        return []
 
+def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
-    for entry in feed.entries[:max_results]:
-        try:
-            published_at = datetime(*entry.published_parsed[:6]) if entry.get("published_parsed") else None
-        except Exception:
-            published_at = None
-
-        source = entry.get('source', {}).get('title', 'Unknown')
-        source = str(source).lower().replace(".com", "")
-
-        articles.append({
-            'Keyword': keyword,
-            'Headline': entry.title,
-            'URL': entry.link,
-            'Published on': published_at,
-            'Source': source
-        })
-
-    return articles
-def filter_by_timeline(df, timeline_choice, start_date=None, end_date=None):
-    df = df.copy()
-    df['PublishedDate'] = df['Published on'].dt.date
     today = datetime.now().date()
 
+    # Determine the date range based on timeline_choice
     if timeline_choice == "Today":
-        return df[df['PublishedDate'] == today]
+        date_range = [today]
     elif timeline_choice == "Yesterday":
-        return df[df['PublishedDate'] == today - timedelta(days=1)]
+        date_range = [today - timedelta(days=1)]
     elif timeline_choice == "Last 7 Days":
-        return df[df['PublishedDate'] >= today - timedelta(days=7)]
+        date_range = [today - timedelta(days=i) for i in range(7)]
     elif timeline_choice == "Last 1 Month":
-        return df[df['PublishedDate'] >= today - timedelta(days=30)]
+        date_range = [today - timedelta(days=i) for i in range(30)]
     elif timeline_choice == "Custom Range" and start_date and end_date:
-        return df[(df['PublishedDate'] >= start_date) & (df['PublishedDate'] <= end_date)]
-    return df
+        date_range = pd.date_range(start=start_date, end=end_date).to_pydatetime().tolist()
+        date_range = [d.date() for d in date_range]
+    else:
+        date_range = [None]  # No specific filter
+
+    for date_val in date_range:
+        if date_val:
+            query = f'{keyword} after:{date_val} before:{date_val + timedelta(days=1)}'
+        else:
+            query = keyword
+
+        rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-IN&gl=IN&ceid=IN:en"
+
+        try:
+            response = requests.get(rss_url, timeout=10)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+
+            for entry in feed.entries:
+                published_at = datetime(*entry.published_parsed[:6]) if entry.get("published_parsed") else None
+                source = entry.get('source', {}).get('title', 'Unknown')
+                source = str(source).lower().replace(".com", "")
+
+                articles.append({
+                    'Keyword': keyword,
+                    'Headline': entry.title,
+                    'URL': entry.link,
+                    'Published on': published_at,
+                    'Source': source
+                })
+
+            if len(articles) >= max_results:
+                break
+
+        except requests.RequestException as e:
+            logging.error(f"Request failed for {keyword}: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error for {keyword}: {e}")
+
+    return articles[:max_results]
+
 
 def get_final_article_url_selenium(url):
     try:
         response = httpx.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Look for meta refresh tag
         meta = soup.find("meta", attrs={"http-equiv": "refresh"})
         if meta and "content" in meta.attrs:
             content = meta["content"]
-            # content looks like "0; URL=https://www.actual-site.com/article"
             if "url=" in content.lower():
                 real_url = content.split("URL=")[-1].strip()
                 return real_url
@@ -120,6 +127,7 @@ def get_final_article_url_selenium(url):
     except Exception as e:
         print("Failed to resolve real URL:", e)
         return url
+
 
 def extract_article_text(url):
     try:
@@ -132,16 +140,25 @@ def extract_article_text(url):
     except Exception:
         return ""
 
-# --- Streamlit UI ---
+
+# -------------------------------
+# --- Streamlit App
+# -------------------------------
 st.set_page_config(page_title="📰 Keyword News Explorer with Summarization", layout="wide")
 st.title("📰 Keyword News Explorer with Summarization")
 
-# --- Input Section ---
+# Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
     max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=500, value=200, step=10)
+    timeline_choice = st.selectbox("📆 Fetch Timeline", ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
+    start_date = end_date = None
+    if timeline_choice == "Custom Range":
+        start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
+        end_date = st.date_input("To Date", value=datetime.now().date())
     submitted = st.form_submit_button("Fetch News")
 
+# Fetch Articles
 if submitted:
     if not keywords_input.strip():
         st.warning("Please enter at least one keyword.")
@@ -152,58 +169,63 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            articles = fetch_latest_headlines_rss(keyword, max_results=max_articles)
+            articles = fetch_latest_headlines_rss(
+                keyword,
+                max_results=max_articles,
+                timeline_choice=timeline_choice,
+                start_date=start_date,
+                end_date=end_date
+            )
             all_articles.extend(articles)
 
     if not all_articles:
-        st.error("⚠️ No news found for the given keywords.")
+        st.error("⚠️ No news found for the given keywords and timeline.")
         st.stop()
 
     df = pd.DataFrame(all_articles)
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
-
     df.sort_values(by="Published on", ascending=False, inplace=True)
 
     st.session_state['articles_df'] = df
-    st.session_state['filtered_df'] = df  # Initial load
+    st.session_state['filtered_df'] = df
 
-# --- Display and Filter Section ---
+# Display Section
 if 'articles_df' in st.session_state:
     df = st.session_state['articles_df'].copy()
-
     st.markdown("---")
     st.subheader("🧰 Filters")
 
     available_keywords = sorted(df['Keyword'].dropna().unique())
     available_sources = sorted(df['Source'].dropna().unique())
     available_categories = sorted(df['Category'].dropna().unique())
-    timeline_options = ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"]
 
     col1, col2 = st.columns(2)
     with col1:
         keyword_filter = st.selectbox("🔑 Keyword", options=["All"] + available_keywords)
-        
     with col2:
         source_filter = st.selectbox("🔗 Source", options=["All"] + available_sources)
 
     col3, col4 = st.columns(2)
     with col3:
-        
         category_filter = st.selectbox("🏷️ Category", options=["All"] + available_categories)
     with col4:
-        timeline_choice = st.selectbox("📆 Timeline", timeline_options)
-
-        start_date = end_date = None
-        if timeline_choice == "Custom Range":
-            start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
-            end_date = st.date_input("To Date", value=datetime.now().date())
-            if start_date > end_date:
-                st.warning("⚠️ 'From' date cannot be after 'To' date.")
-                st.stop()
+        timeline_filter_choice = st.selectbox("📆 Timeline (for filtering only)", ["All", "Today", "Yesterday", "Last 7 Days", "Last 1 Month"])
 
     if st.button("Apply Filters"):
-        filtered_df = filter_by_timeline(df, timeline_choice, start_date, end_date)
+        filtered_df = df.copy()
+        today = datetime.now().date()
+        filtered_df['PublishedDate'] = filtered_df['Published on'].dt.date
+
+        if timeline_filter_choice == "Today":
+            filtered_df = filtered_df[filtered_df['PublishedDate'] == today]
+        elif timeline_filter_choice == "Yesterday":
+            filtered_df = filtered_df[filtered_df['PublishedDate'] == today - timedelta(days=1)]
+        elif timeline_filter_choice == "Last 7 Days":
+            filtered_df = filtered_df[filtered_df['PublishedDate'] >= today - timedelta(days=7)]
+        elif timeline_filter_choice == "Last 1 Month":
+            filtered_df = filtered_df[filtered_df['PublishedDate'] >= today - timedelta(days=30)]
+
         if keyword_filter != "All":
             filtered_df = filtered_df[filtered_df['Keyword'] == keyword_filter]
 
@@ -213,20 +235,12 @@ if 'articles_df' in st.session_state:
         if category_filter != "All":
             filtered_df = filtered_df[filtered_df['Category'] == category_filter]
 
-
-        
-
         filtered_df.sort_values(by="Published on", ascending=False, inplace=True)
-
-        if filtered_df.empty:
-            st.warning("⚠️ No articles match the selected filters.")
-
         st.session_state['filtered_df'] = filtered_df
 
     filtered_df = st.session_state.get('filtered_df', df)
     st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
 
-    # --- Summarization Callback ---
     def summarize_article(idx, url):
         with st.spinner("Generating summary..."):
             try:
@@ -238,11 +252,10 @@ if 'articles_df' in st.session_state:
                     st.session_state[f"summary_{idx}"] = final_url
                 else:
                     summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-                    st.session_state[f"summary_{idx}"] = article_text
+                    st.session_state[f"summary_{idx}"] = summary
             except Exception as e:
                 st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
 
-    # --- Article Display ---
     for idx, row in filtered_df.iterrows():
         with st.expander(f"🔹 {row['Headline']}", expanded=False):
             st.markdown(f"**Keyword:** {row['Keyword']}")
