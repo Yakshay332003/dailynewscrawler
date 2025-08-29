@@ -117,6 +117,7 @@ def get_final_article_url_selenium(url):
 def extract_article_text(url):
     try:
         resp = requests.get(url, timeout=10)
+        time.sleep(10)
         soup = BeautifulSoup(resp.text, 'html.parser')
         paragraphs = soup.find_all('p')
         text = "\n".join([p.get_text() for p in paragraphs if len(p.get_text()) > 20])
