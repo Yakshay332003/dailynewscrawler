@@ -31,8 +31,8 @@ CATEGORIES = {
 
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
-    torch_dtype = torch.float32  # force CPU-compatible type
-    return SentenceTransformer('all-MiniLM-L6-v2', device='cpu', dtype=torch_dtype)
+    
+    return SentenceTransformer('all-MiniLM-L6-v2')
 
 model = load_sentence_model()
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
