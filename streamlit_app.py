@@ -51,7 +51,7 @@ category_names = list(category_texts.keys())
 # --- Helper Functions
 # -------------------------------
 
-    return summary
+    
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
     headline_embedding = model.encode([text])
