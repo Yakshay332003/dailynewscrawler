@@ -187,7 +187,7 @@ if submitted:
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
     df.sort_values(by="Published on", ascending=False, inplace=True)
-    df=df.drop_duplicates()
+    df=df.drop_duplicates(subset=['Headline'])
 
     st.session_state['articles_df'] = df
     st.session_state['filtered_df'] = df
