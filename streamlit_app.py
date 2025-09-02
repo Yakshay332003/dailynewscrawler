@@ -146,7 +146,7 @@ def extract_article_text(url):
 # --- Streamlit App
 # -------------------------------
 st.set_page_config(page_title="📰 Keyword News Explorer", layout="wide")
-st.title("📰 Keyword News ")
+st.title("📰 Keyword News Explorer ")
 
 # Input Section
 with st.form("fetch_form"):
