@@ -41,25 +41,12 @@ category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
 
-@st.cache_resource(show_spinner=False)
-def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn")
-
-summarizer = load_summarizer()
 
 # -------------------------------
 
 
 
 
-def resolve_google_news_url(google_news_url):
-    try:
-        # Allow redirects to follow
-        response = requests.get(google_news_url, timeout=10)
-        return response.url  # Final redirected URL
-    except Exception as e:
-        logging.error(f"Error resolving original URL: {e}")
-        return google_news_url  # fallback to original
 
 # --- Helper Functions
 # -------------------------------
@@ -144,41 +131,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
 
     return articles[:max_results]
 
-def resolve_final_url(url, max_wait=5):
-    import time
-    try:
-        start_time = time.time()
-        current_url = url
 
-        while True:
-            response = requests.get(current_url, timeout=10)
-            # Check if page contains meta refresh redirect
-            soup = BeautifulSoup(response.text, 'html.parser')
-            meta = soup.find("meta", attrs={"http-equiv": "refresh"})
-            if meta and "content" in meta.attrs:
-                content = meta["content"]
-                # Extract URL after 'url=' ignoring case
-                import re
-                match = re.search(r'url=([^;]+)', content, re.I)
-                if match:
-                    next_url = match.group(1).strip().strip("'\"")
-                    if next_url == current_url:
-                        # Redirect URL same as current - break loop
-                        break
-                    current_url = next_url
-                    # Check time elapsed
-                    if time.time() - start_time > max_wait:
-                        break
-                    # Wait briefly before next request
-                    time.sleep(1)
-                    continue
-            # No meta refresh redirect found, final URL reached
-            break
-
-        return response.url if response.url else current_url
-    except Exception as e:
-        print(f"Error resolving final url: {e}")
-        return url
 
 
 def extract_article_text(url):
@@ -192,13 +145,13 @@ def extract_article_text(url):
 # -------------------------------
 # --- Streamlit App
 # -------------------------------
-st.set_page_config(page_title="📰 Keyword News Explorer with Summarization", layout="wide")
-st.title("📰 Keyword News Explorer with Summarization")
+st.set_page_config(page_title="📰 Keyword News Explorer", layout="wide")
+st.title("📰 Keyword News ")
 
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles per keyword (up to 500)", min_value=10, max_value=1000, value=100, step=10)
+    max_articles = st.number_input("Max articles per keyword (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
     start_date = end_date = None
     if timeline_choice == "Custom Range":
@@ -276,20 +229,7 @@ if 'articles_df' in st.session_state:
     filtered_df = st.session_state.get('filtered_df', df)
     st.markdown(f"### 📄 Showing {len(filtered_df)} articles")
 
-    def summarize_article(idx, url):
-        with st.spinner("Generating summary..."):
-            try:
-                final_url=resolve_final_url(url)
-                article_text=extract_article_text(url)
-                if len(article_text) > 1000:
-                    article_text = article_text[:1000]
-                if len(article_text.strip()) < 100:
-                    st.session_state[f"summary_{idx}"] = final_url
-                else:
-                    summary = summarizer(article_text, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-                    st.session_state[f"summary_{idx}"] = summary
-            except Exception as e:
-                st.session_state[f"summary_{idx}"] = f"Failed to summarize: {e}"
+    
 
     for idx, row in filtered_df.iterrows():
         with st.expander(f"🔹 {row['Headline']}", expanded=False):
@@ -299,10 +239,4 @@ if 'articles_df' in st.session_state:
             st.markdown(f"**Category:** {row['Category']}")
             st.markdown(f"[🔗 Read Full Article]({row['URL']})")
 
-            summary_key = f"summary_{idx}"
-            if st.button("📝 Summarize Article", key=f"summarize_btn_{idx}"):
-                summarize_article(idx, row['URL'])
-
-            if summary_key in st.session_state:
-                st.markdown("**Summary:**")
-                st.write(st.session_state[summary_key])
+            
