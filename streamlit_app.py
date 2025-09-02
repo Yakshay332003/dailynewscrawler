@@ -98,7 +98,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
                 articles.append({
                     'Keyword': keyword,
                     'Headline': entry.title,
-                    'URL': resolve_google_news_url(entry.link),
+                    'URL': entry.link,
                     'Published on': published_at,
                     'Source': source
                 })
