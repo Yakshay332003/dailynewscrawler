@@ -48,6 +48,19 @@ category_names = list(category_texts.keys())
 
 # --- Helper Functions
 # -------------------------------
+preferred_sources = [
+    'fierce pharma',
+    'biopharma dive',
+    'contract pharma',
+    'fierce biotech',
+    'pharmavoice',
+    'biospace',
+    'pharmaceutical technology',
+    'endpoints news'
+]
+def source_priority(source):
+    source_lower = str(source).lower()
+    return 0 if any(pref in source_lower for pref in preferred_sources) else 1
 
     
 def classify_with_embeddings(headline):
@@ -184,7 +197,9 @@ if submitted:
     df = pd.DataFrame(all_articles)
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
-    df.sort_values(by="Published on", ascending=False, inplace=True)
+    df['priority'] = df['Source'].apply(source_priority)
+    df = df.sort_values(by=['priority', 'Published on'], ascending=[True, False])
+    df = df.drop(columns=['priority'])
     df=df.drop_duplicates(subset=['Headline'])
 
     st.session_state['articles_df'] = df
@@ -222,7 +237,7 @@ if 'articles_df' in st.session_state:
         if category_filter != "All":
             filtered_df = filtered_df[filtered_df['Category'] == category_filter]
 
-        filtered_df.sort_values(by="Published on", ascending=False, inplace=True)
+        
         st.session_state['filtered_df'] = filtered_df
 
     filtered_df = st.session_state.get('filtered_df', df)
