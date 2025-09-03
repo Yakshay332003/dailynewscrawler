@@ -8,8 +8,6 @@ from urllib.parse import quote
 import logging
 import numpy as np
 from langchain.document_loaders import UnstructuredURLLoader
-
-
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
