@@ -16,7 +16,7 @@ from langchain.tools import Tool
 from transformers import pipeline
 from bs4 import BeautifulSoup
 import httpx
-from transformers import AutoModelForCausalLM, AutoTokenizer
+
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -30,7 +30,14 @@ CATEGORIES = {
     "Partnerships": ['partnership', 'collaboration', 'agreement', 'alliance', 'teaming up'],
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
-
+@st.cache_resource(show_spinner=False)
+def load_llm():
+    return pipeline(
+        "text2text-generation",
+        model="MBZUAI/LaMini-Flan-T5-783M",  # or "tiiuae/falcon-rw-1b"
+        tokenizer="MBZUAI/LaMini-Flan-T5-783M",
+        device=0 if torch.cuda.is_available() else -1
+    )
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
@@ -83,52 +90,21 @@ def classify_with_embeddings(headline):
 def get_related_keywords(keyword, top_n=5):
     try:
         prompt = (
-    f"Given the keyword '{keyword}', return {top_n} highly relevant and **diverse** related keywords. "
-    f"These should be **semantically different**, avoid repeating forms of the same word, and should not include the original keyword itself. "
-    f"Separate them with commas only. Do not add explanations or extra text."
-)
+            f"List {top_n} relevant, domain-specific keywords related to '{keyword}' "
+            f"in biopharma, biotech, or healthcare. "
+            f"Do not include the original keyword. Return the keywords separated by commas."
+        )
 
-        
-        # Call the model
         response = llm(prompt, max_new_tokens=64, truncation=True)
-        
-        # Extract text safely
         text = response[0].get("generated_text", "")
-        
-        # Clean and split into keywords
-        text = re.sub(r'^.*?:', '', text)  # Remove prefixed labels like "Keywords:"
-        related = re.split(r'[,\n]', text)
-        related = [r.strip() for r in related if r.strip() and r.lower() != keyword.lower()]
-        
-        return related[:top_n]
-    
+        text = re.sub(r'^.*?:', '', text)
+        related = [r.strip() for r in re.split(r'[,\n]', text) if r.strip()]
+        related = [r for r in related if r.lower() != keyword.lower()]
+        return list(dict.fromkeys(related))[:top_n]
+
     except Exception as e:
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
-def get_related_keywords_biogpt(keyword, top_n=5):
-    prompt = (
-        f"Generate {top_n} most related keywords for: {keyword}. "
-        f"Return the results separated by commas."
-    )
-
-    inputs = biogpt_tokenizer(prompt, return_tensors="pt")
-    output = biogpt_model.generate(
-        **inputs,
-        max_new_tokens=64,
-        do_sample=True,
-        top_k=50,
-        top_p=0.95,
-        temperature=0.7,
-        num_return_sequences=1
-    )
-
-    decoded = biogpt_tokenizer.decode(output[0], skip_special_tokens=True)
-
-    # Extract and clean keywords
-    raw_output = decoded.replace(prompt, "").strip()
-    keywords = [k.strip() for k in re.split(r'[,\n]', raw_output) if k.strip()]
-    keywords = [k for k in keywords if k.lower() != keyword.lower()]
-    return list(dict.fromkeys(keywords))[:top_n]
 
 def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
@@ -240,7 +216,7 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            related_kws = get_related_keywords_biogpt(keyword, top_n=5)
+            related_kws = get_related_keywords(keyword, top_n=5)
 
             related_kws=list(set(related_kws))
             st.write(f"Related keywords for **{keyword}**: {related_kws}") 
