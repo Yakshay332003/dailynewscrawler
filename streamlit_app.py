@@ -97,6 +97,7 @@ def get_related_keywords(keyword, top_n=5):
         raw_text = response[0].get("generated_text", "")
         # Remove anything before the first colon or newline if present
         raw_text = re.sub(r'^.*?:\s*', '', raw_text)
+        st.write(f"{raw_text}") 
 
         # Split on commas or line breaks, strip whitespace, remove numbers
         related = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in re.split(r'[,\n]', raw_text)]
