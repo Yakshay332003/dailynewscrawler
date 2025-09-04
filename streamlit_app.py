@@ -107,7 +107,7 @@ def get_related_keywords(keyword, top_n=5):
         return []
 def get_related_keywords_biogpt(keyword, top_n=5):
     prompt = (
-        f"Generate {top_n} related biomedical or pharmaceutical terms for: {keyword}. "
+        f"Generate {top_n} most related keywords for: {keyword}. "
         f"Return the results separated by commas."
     )
 
