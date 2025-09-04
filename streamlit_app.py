@@ -106,7 +106,7 @@ def get_related_keywords(keyword, top_n=5):
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
 
-def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
+def fetch_latest_headlines_rss(keyword,  timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
 
@@ -149,8 +149,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
                     'Source': source
                 })
 
-            if len(articles) >= max_results:
-                break
+            
 
         except requests.RequestException as e:
             logging.error(f"Request failed for {keyword}: {e}")
@@ -175,7 +174,7 @@ def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", star
             elif timeline_choice == "Custom Range" and start_date and end_date:
                 articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
 
-    return articles[:max_results]
+    return articles
 
 
 
@@ -225,7 +224,7 @@ if submitted:
             for kw in expanded_keywords:
                 articles = fetch_latest_headlines_rss(
                     kw,
-                    max_results=max_articles,
+                   
                     timeline_choice=timeline_choice,
                     start_date=start_date,
                     end_date=end_date
@@ -247,6 +246,7 @@ if submitted:
     df = df.sort_values(by=['HasExpandedKeyword','priority', 'Published on'], ascending=[False,True, False])
     df = df.drop(columns=['priority','HasExpandedKeyword'])
     df=df.drop_duplicates(subset=['Headline'])
+    df=df.head(max_articles)
 
     st.session_state['articles_df'] = df
     st.session_state['filtered_df'] = df
