@@ -204,6 +204,7 @@ if submitted:
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
             related_kws = get_related_keywords(keyword, top_n=5)
+            related_kws=list(set(related_kws))
             st.write(f"Related keywords for **{keyword}**: {related_kws}") 
 
             expanded_keywords = related_kws+[keyword]
