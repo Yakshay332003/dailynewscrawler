@@ -11,7 +11,7 @@ torch>=2.3.0
 selenium>=4.20.0
 urllib3>=2.2.2
 sentencepiece
-
+sacremoses
 httpx
 langchain-community
 bs4
