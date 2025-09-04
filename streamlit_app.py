@@ -87,8 +87,8 @@ def get_related_keywords(keyword, top_n=5):
         model = load_gemini_model()
 
         prompt = (
-    f"List {top_n} distinct, domain-specific keywords related to '{keyword}' "
-    f"in the biopharma, biotech, or healthcare industries. "
+    f" if the {keyword} is not the company name then List {top_n} distinct, domain-specific keywords related to '{keyword}' in the biopharma, biotech, or healthcare industries  "
+    
     f"If '{keyword}' is a company name,Give full company name and also provide  all subsidiaries under that company. "
     
     f"Respond with a comma-separated list only."
