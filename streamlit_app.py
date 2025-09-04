@@ -86,11 +86,11 @@ def classify_with_embeddings(headline):
 def get_related_keywords(keyword, top_n=5):
     try:
         prompt = (
-            f"List {top_n} distinct, domain-specific keywords relevant to the topic '{keyword}' "
-            f"in biopharma, biotech, or healthcare. "
-            f"Do NOT include the word '{keyword}' or any variations of it. "
-            f"Respond with a comma-separated keywords."
+            f"<s>[INST] List {top_n} domain-specific keywords related to '{keyword}' "
+            f"in biopharma, biotech, or healthcare. Do NOT include the word '{keyword}' "
+            f"or any of its variations. Respond only with a comma-separated list. [/INST]"
         )
+
 
         response = llm(prompt, max_new_tokens=64, truncation=True)
 
