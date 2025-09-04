@@ -75,7 +75,17 @@ def classify_with_embeddings(headline):
     max_idx = np.argmax(similarities)
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
-
+def get_related_keywords(keyword, top_n=5):
+    try:
+        prompt = f"List {top_n} related keywords for the term '{keyword}' in the biotech and pharma domain, separated by commas."
+        response = llm(prompt, max_length=50, num_return_sequences=1)
+        text = response[0]["generated_text"]
+        related = re.split(r'[,\n]', text)
+        related = [r.strip() for r in related if r.strip() and r.lower() != keyword.lower()]
+        return related[:top_n]
+    except Exception as e:
+        logging.error(f"LLM keyword generation failed for {keyword}: {e}")
+        return []   
 def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
