@@ -89,7 +89,7 @@ def get_related_keywords(keyword, top_n=5):
             f"List {top_n} distinct, domain-specific keywords relevant to the topic '{keyword}' "
             f"in biopharma, biotech, or healthcare. "
             f"Do NOT include the word '{keyword}' or any variations of it. "
-            f"Respond with a comma-separated python list only."
+            f"Respond with a comma-separated keywords."
         )
 
         response = llm(prompt, max_new_tokens=64, truncation=True)
