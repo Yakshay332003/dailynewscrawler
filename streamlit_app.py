@@ -16,7 +16,7 @@ from langchain.tools import Tool
 from transformers import pipeline
 from bs4 import BeautifulSoup
 import httpx
-
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -31,12 +31,19 @@ CATEGORIES = {
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
 @st.cache_resource(show_spinner=False)
-def load_llm():
+def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        device_map="auto",  # Automatically places on GPU if available
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+    )
+
     return pipeline(
-        "text2text-generation",
-        model="MBZUAI/LaMini-Flan-T5-783M",  # or "tiiuae/falcon-rw-1b"
-        tokenizer="MBZUAI/LaMini-Flan-T5-783M",
-        device=0 if torch.cuda.is_available() else -1
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        device=0 if torch.cuda.is_available() else -1,
     )
 llm=load_llm()
 @st.cache_resource(show_spinner=False)
