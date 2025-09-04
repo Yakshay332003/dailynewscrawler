@@ -37,7 +37,11 @@ def load_sentence_model():
 model = load_sentence_model()
 @st.cache_resource(show_spinner=False)
 def load_llm():
-    return pipeline("text-generation", model="distilgpt2", device=0 if torch.cuda.is_available() else -1)
+    return pipeline(
+        "text2text-generation",
+        model="google/flan-t5-base",
+        device=0 if torch.cuda.is_available() else -1
+    )
 
 llm = load_llm()
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
