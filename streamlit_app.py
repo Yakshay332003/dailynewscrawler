@@ -35,7 +35,7 @@ CATEGORIES = {
 
 def load_gemini_model():
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-pro")  # or "gemini-1.5-pro"
+    model = genai.GenerativeModel("gemini-2.5-pro")  # or "gemini-1.5-pro"
     return model
 
 @st.cache_resource(show_spinner=False)
