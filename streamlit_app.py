@@ -81,7 +81,7 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 def get_related_keywords(keyword, top_n=5):
     try:
-        prompt = f"List {top_n} related keywords for the term '{keyword}' in the biotech and pharma domain, separated by commas."
+        prompt = f"List {top_n} related keywords for the term '{keyword}'  separated by commas."
         response = llm(prompt, max_length=50, num_return_sequences=1)
         text = response[0]["generated_text"]
         related = re.split(r'[,\n]', text)
