@@ -137,7 +137,7 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
             headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 }
-            response = requests.get(rss_url, timeout=10)
+            response = requests.get(rss_url, timeout=10,headers=headers)
             response.raise_for_status()
             feed = feedparser.parse(response.content)
 
