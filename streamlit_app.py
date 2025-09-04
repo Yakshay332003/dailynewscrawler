@@ -143,8 +143,13 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
                     'Published on': published_at,
                     'Source': source
                 })
-            if len(articles)>=max_results:
-                break
+                if len(articles)>=max_results:
+                    break
+                
+        
+        if len(articles)>=max_results:
+            break
+        
             
 
             
