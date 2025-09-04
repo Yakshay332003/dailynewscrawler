@@ -38,6 +38,7 @@ def load_llm():
         tokenizer="MBZUAI/LaMini-Flan-T5-783M",
         device=0 if torch.cuda.is_available() else -1
     )
+llm=load_llm()
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
