@@ -81,8 +81,13 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 def get_related_keywords(keyword, top_n=5):
     try:
-        prompt = f"Give me {top_n} semantically related keywords for '{keyword}', separated by commas."
-        response = llm(prompt, max_length=64, num_return_sequences=1)
+        prompt = (
+            f"You are a keyword giving agent. "
+            f"Give me {top_n} related keywords for '{keyword}'. "
+            f"If the keyword provided is a company name then give the full name of it. "
+            f"Do not include the same keyword in the list. "
+            f"Return keywords separated by commas."
+        )
         # Safely extract the generated text
         text = response[0].get("generated_text", "")
         # Try to handle odd completions
