@@ -7,7 +7,7 @@ import re
 from urllib.parse import quote
 import logging
 import numpy as np
-
+from transformers import pipeline
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import time
@@ -35,6 +35,11 @@ def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 model = load_sentence_model()
+@st.cache_resource(show_spinner=False)
+def load_llm():
+    return pipeline("text-generation", model="distilgpt2", device=0 if torch.cuda.is_available() else -1)
+
+llm = load_llm()
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
@@ -181,15 +186,23 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            articles = fetch_latest_headlines_rss(
-                keyword,
-                max_results=max_articles,
-                timeline_choice=timeline_choice,
-                start_date=start_date,
-                end_date=end_date
-            )
-            all_articles.extend(articles)
+            related_kws = get_related_keywords(keyword, top_n=5)
 
+            expanded_keywords = related_kws+[keyword]
+            for kw in expanded_keywords:
+                articles = fetch_latest_headlines_rss(
+                    kw,
+                    max_results=max_articles,
+                    timeline_choice=timeline_choice,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                for a in articles:
+                    headline_text = a["Headline"].lower()
+                    a["HasExpandedKeyword"] = any(
+                ek.lower() in headline_text for ek in expanded_keywords
+                    )
+                    all_articles.append(a)
     if not all_articles:
         st.error("⚠️ No news found for the given keywords and timeline.")
         st.stop()
@@ -198,8 +211,8 @@ if submitted:
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
     df['priority'] = df['Source'].apply(source_priority)
-    df = df.sort_values(by=['priority', 'Published on'], ascending=[True, False])
-    df = df.drop(columns=['priority'])
+    df = df.sort_values(by=['HasExpandedKeyword','priority', 'Published on'], ascending=[False,True, False])
+    df = df.drop(columns=['priority','HasExpandedKeyword'])
     df=df.drop_duplicates(subset=['Headline'])
 
     st.session_state['articles_df'] = df
