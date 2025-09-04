@@ -18,6 +18,8 @@ from bs4 import BeautifulSoup
 import httpx
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import urllib3
+import google.generativeai as genai
+import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # -------------------------------
@@ -30,22 +32,12 @@ CATEGORIES = {
     "Partnerships": ['partnership', 'collaboration', 'agreement', 'alliance', 'teaming up'],
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
-@st.cache_resource(show_spinner=False)
-def load_llm(model_name="mistralai/Mistral-7B-Instruct-v0.2"):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        device_map="auto",  # Automatically places on GPU if available
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-    )
 
-    return pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        device=0 if torch.cuda.is_available() else -1,
-    )
-llm=load_llm()
+def load_gemini_model():
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model = genai.GenerativeModel("gemini-pro")  # or "gemini-1.5-pro"
+    return model
+
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
@@ -92,29 +84,27 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 def get_related_keywords(keyword, top_n=5):
     try:
+        model = load_gemini_model()
+
         prompt = (
-            f"<s>[INST] List {top_n} domain-specific keywords related to '{keyword}' "
-            f"in biopharma, biotech, or healthcare. Do NOT include the word '{keyword}' "
-            f"or any of its variations. Respond only with a comma-separated list. [/INST]"
+            f"List {top_n} distinct, domain-specific keywords related to '{keyword}' "
+            f"in biopharma, biotech, or healthcare. "
+            f"Do NOT include the word '{keyword}' or any variations of it. "
+            f"Respond with a comma-separated list only."
         )
 
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        print("Gemini raw response:", text)
 
-        response = llm(prompt, max_new_tokens=64, truncation=True)
-
-        raw_text = response[0].get("generated_text", "")
-        # Remove anything before the first colon or newline if present
-        raw_text = re.sub(r'^.*?:\s*', '', raw_text)
-        st.write(f"{raw_text}") 
-
-        # Split on commas or line breaks, strip whitespace, remove numbers
-        related = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in re.split(r'[,\n]', raw_text)]
-        related = [kw for kw in related if kw and kw.lower() != keyword.lower()]
-
-        # Deduplicate while preserving order
-        return list(dict.fromkeys(related))[:top_n]
+        # Parse the keywords
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
 
     except Exception as e:
-        logging.error(f"LLM keyword generation failed for {keyword}: {e}")
+        logging.error(f"Gemini keyword generation failed for {keyword}: {e}")
         return []
 def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", start_date=None, end_date=None):
     articles = []
