@@ -196,7 +196,7 @@ st.title("📰 Keyword News Explorer ")
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles per keyword (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
+    max_articles = st.number_input("Max articles to display (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
     start_date = end_date = None
     if timeline_choice == "Custom Range":
