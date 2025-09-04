@@ -71,14 +71,9 @@ preferred_sources = [
 def source_priority(source):
     source_lower = str(source).lower()
     return 0 if any(pref in source_lower for pref in preferred_sources) else 1
-@st.cache_resource(show_spinner=False)
-def load_biogpt():
-    model_name = "microsoft/biogpt"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    return tokenizer, model
 
-biogpt_tokenizer, biogpt_model = load_biogpt()
+
+
     
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
@@ -106,7 +101,7 @@ def get_related_keywords(keyword, top_n=5):
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
 
-def fetch_latest_headlines_rss(keyword,  timeline_choice="All", start_date=None, end_date=None):
+def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
 
@@ -148,6 +143,9 @@ def fetch_latest_headlines_rss(keyword,  timeline_choice="All", start_date=None,
                     'Published on': published_at,
                     'Source': source
                 })
+            if len(articles)>=max_results:
+                break
+            
 
             
 
@@ -224,6 +222,7 @@ if submitted:
             for kw in expanded_keywords:
                 articles = fetch_latest_headlines_rss(
                     kw,
+                    max_articles,
                    
                     timeline_choice=timeline_choice,
                     start_date=start_date,
@@ -246,7 +245,7 @@ if submitted:
     df = df.sort_values(by=['HasExpandedKeyword','priority', 'Published on'], ascending=[False,True, False])
     df = df.drop(columns=['priority','HasExpandedKeyword'])
     df=df.drop_duplicates(subset=['Headline'])
-    df=df.head(max_articles)
+    
 
     st.session_state['articles_df'] = df
     st.session_state['filtered_df'] = df
