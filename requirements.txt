@@ -15,6 +15,7 @@ sentencepiece
 httpx
 langchain-community
 bs4
+
 unstructured
 
 
