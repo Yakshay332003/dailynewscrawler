@@ -88,13 +88,20 @@ def get_related_keywords(keyword, top_n=5):
             f"Do not include the same keyword in the list. "
             f"Return keywords separated by commas."
         )
-        # Safely extract the generated text
+        
+        # Call the model
+        response = llm(prompt, max_new_tokens=64, truncation=True)
+        
+        # Extract text safely
         text = response[0].get("generated_text", "")
-        # Try to handle odd completions
-        text = re.sub(r'^.*?:', '', text)  # Remove any prefixed labels
+        
+        # Clean and split into keywords
+        text = re.sub(r'^.*?:', '', text)  # Remove prefixed labels like "Keywords:"
         related = re.split(r'[,\n]', text)
         related = [r.strip() for r in related if r.strip() and r.lower() != keyword.lower()]
+        
         return related[:top_n]
+    
     except Exception as e:
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
