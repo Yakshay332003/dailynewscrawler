@@ -81,15 +81,18 @@ def classify_with_embeddings(headline):
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 def get_related_keywords(keyword, top_n=5):
     try:
-        prompt = f"List {top_n} related keywords for the term '{keyword}'  separated by commas."
-        response = llm(prompt, max_length=50, num_return_sequences=1)
-        text = response[0]["generated_text"]
+        prompt = f"Give me {top_n} semantically related keywords for '{keyword}', separated by commas."
+        response = llm(prompt, max_length=64, num_return_sequences=1)
+        # Safely extract the generated text
+        text = response[0].get("generated_text", "")
+        # Try to handle odd completions
+        text = re.sub(r'^.*?:', '', text)  # Remove any prefixed labels
         related = re.split(r'[,\n]', text)
         related = [r.strip() for r in related if r.strip() and r.lower() != keyword.lower()]
         return related[:top_n]
     except Exception as e:
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
-        return []   
+        return []
 def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
@@ -201,6 +204,7 @@ if submitted:
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
             related_kws = get_related_keywords(keyword, top_n=5)
+            st.write(f"Related keywords for **{keyword}**: {related_kws}") 
 
             expanded_keywords = related_kws+[keyword]
             for kw in expanded_keywords:
