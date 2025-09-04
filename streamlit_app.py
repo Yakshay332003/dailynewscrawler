@@ -176,7 +176,7 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
                 articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
         if len(articles)>=max_articles:
             break
-        articles=articles[:max_articles+1]
+        articles=articles[:max_articles+2]
 
     return articles
 
