@@ -16,6 +16,7 @@ from langchain.tools import Tool
 from transformers import pipeline
 from bs4 import BeautifulSoup
 import httpx
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -35,15 +36,8 @@ def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 model = load_sentence_model()
-@st.cache_resource(show_spinner=False)
-def load_llm():
-    return pipeline(
-        "text2text-generation",
-        model="google/flan-t5-base",
-        device=0 if torch.cuda.is_available() else -1
-    )
 
-llm = load_llm()
+
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
@@ -70,7 +64,14 @@ preferred_sources = [
 def source_priority(source):
     source_lower = str(source).lower()
     return 0 if any(pref in source_lower for pref in preferred_sources) else 1
+@st.cache_resource(show_spinner=False)
+def load_biogpt():
+    model_name = "microsoft/biogpt"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    return tokenizer, model
 
+biogpt_tokenizer, biogpt_model = load_biogpt()
     
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', headline.lower())
@@ -82,12 +83,11 @@ def classify_with_embeddings(headline):
 def get_related_keywords(keyword, top_n=5):
     try:
         prompt = (
-            f"You are a keyword giving agent. "
-            f"Give me {top_n} related keywords for '{keyword}'. "
-            f"If the keyword provided is a company name then give the full name of it. "
-            f"Do not include the same keyword in the list. "
-            f"Return keywords separated by commas."
-        )
+    f"Given the keyword '{keyword}', return {top_n} highly relevant and **diverse** related keywords. "
+    f"These should be **semantically different**, avoid repeating forms of the same word, and should not include the original keyword itself. "
+    f"Separate them with commas only. Do not add explanations or extra text."
+)
+
         
         # Call the model
         response = llm(prompt, max_new_tokens=64, truncation=True)
@@ -105,6 +105,31 @@ def get_related_keywords(keyword, top_n=5):
     except Exception as e:
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
+def get_related_keywords_biogpt(keyword, top_n=5):
+    prompt = (
+        f"Generate {top_n} related biomedical or pharmaceutical terms for: {keyword}. "
+        f"Return the results separated by commas."
+    )
+
+    inputs = biogpt_tokenizer(prompt, return_tensors="pt")
+    output = biogpt_model.generate(
+        **inputs,
+        max_new_tokens=64,
+        do_sample=True,
+        top_k=50,
+        top_p=0.95,
+        temperature=0.7,
+        num_return_sequences=1
+    )
+
+    decoded = biogpt_tokenizer.decode(output[0], skip_special_tokens=True)
+
+    # Extract and clean keywords
+    raw_output = decoded.replace(prompt, "").strip()
+    keywords = [k.strip() for k in re.split(r'[,\n]', raw_output) if k.strip()]
+    keywords = [k for k in keywords if k.lower() != keyword.lower()]
+    return list(dict.fromkeys(keywords))[:top_n]
+
 def fetch_latest_headlines_rss(keyword, max_results, timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
@@ -215,7 +240,8 @@ if submitted:
 
     with st.spinner("🔎 Fetching articles..."):
         for keyword in keywords:
-            related_kws = get_related_keywords(keyword, top_n=5)
+            related_kws = get_related_keywords_biogpt(keyword, top_n=5)
+
             related_kws=list(set(related_kws))
             st.write(f"Related keywords for **{keyword}**: {related_kws}") 
 
