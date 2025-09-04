@@ -86,22 +86,28 @@ def classify_with_embeddings(headline):
 def get_related_keywords(keyword, top_n=5):
     try:
         prompt = (
-            f"List {top_n} relevant, domain-specific keywords related to '{keyword}' "
+            f"List {top_n} distinct, domain-specific keywords relevant to the topic '{keyword}' "
             f"in biopharma, biotech, or healthcare. "
-            f"Do not include the original keyword. Return the keywords separated by commas."
+            f"Do NOT include the word '{keyword}' or any variations of it. "
+            f"Respond with a comma-separated list only."
         )
 
         response = llm(prompt, max_new_tokens=64, truncation=True)
-        text = response[0].get("generated_text", "")
-        text = re.sub(r'^.*?:', '', text)
-        related = [r.strip() for r in re.split(r'[,\n]', text) if r.strip()]
-        related = [r for r in related if r.lower() != keyword.lower()]
+
+        raw_text = response[0].get("generated_text", "")
+        # Remove anything before the first colon or newline if present
+        raw_text = re.sub(r'^.*?:\s*', '', raw_text)
+
+        # Split on commas or line breaks, strip whitespace, remove numbers
+        related = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in re.split(r'[,\n]', raw_text)]
+        related = [kw for kw in related if kw and kw.lower() != keyword.lower()]
+
+        # Deduplicate while preserving order
         return list(dict.fromkeys(related))[:top_n]
 
     except Exception as e:
         logging.error(f"LLM keyword generation failed for {keyword}: {e}")
         return []
-
 def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
