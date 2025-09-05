@@ -204,7 +204,7 @@ def extract_article_text(url):
 # -------------------------------
 # --- Streamlit App
 # -------------------------------
-st.set_page_config(page_title="📰 Keyword News Explorer", layout="wide")
+st.set_page_config(page_title="📰 Hunt News", layout="wide")
 st.title("📰 Keyword News Explorer ")
 
 # Input Section
@@ -275,7 +275,7 @@ if 'articles_df' in st.session_state:
     available_keywords = sorted(df['Keyword'].dropna().unique())
     available_sources = sorted(df['Source'].dropna().unique())
     available_categories = sorted(df['Category'].dropna().unique())
-    st.write(list(available_sources))
+    
 
     col1, col2 = st.columns(2)
     with col1:
