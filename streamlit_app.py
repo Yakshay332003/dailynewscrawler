@@ -275,6 +275,7 @@ if 'articles_df' in st.session_state:
     available_keywords = sorted(df['Keyword'].dropna().unique())
     available_sources = sorted(df['Source'].dropna().unique())
     available_categories = sorted(df['Category'].dropna().unique())
+    st.write(available_sources)
 
     col1, col2 = st.columns(2)
     with col1:
