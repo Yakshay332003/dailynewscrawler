@@ -205,7 +205,7 @@ def extract_article_text(url):
 # --- Streamlit App
 # -------------------------------
 st.set_page_config(page_title="📰 Hunt News", layout="wide")
-st.title("📰 Hunt News by keyword or company name ")
+st.title("📰 Hunt News by Keyword ")
 
 # Input Section
 with st.form("fetch_form"):
