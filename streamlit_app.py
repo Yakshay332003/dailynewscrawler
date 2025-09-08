@@ -163,9 +163,10 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
                     'Published on': published_at,
                     'Source': source
                 })
+                if len(articles)>=max_articles:
+                    break
         
-        if len(articles)>=max_articles:
-            break
+        
         
                
                 
@@ -199,6 +200,8 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
                 articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= month_ago]
             elif timeline_choice == "Custom Range" and start_date and end_date:
                 articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
+        if len(articles)>=max_articles:
+            break
         
         
 
