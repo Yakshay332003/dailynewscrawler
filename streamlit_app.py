@@ -17,7 +17,14 @@ import google.generativeai as genai
 import os
 from huggingface_hub import InferenceClient
 from langchain.document_loaders import UnstructuredURLLoader  # used in extract_article_text
+import re
 
+def clean_html(raw_text):
+    """Remove HTML tags from a string."""
+    if not raw_text:
+        return ""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', raw_text)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # -------------------------------
@@ -143,7 +150,7 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
                 source = str(source).lower().replace(".com", "")
                 articles.append({
                     'Keyword': keyword,
-                    'Headline': entry.title,
+                    'Headline': clean_html(entry.title),
                     'URL': entry.link,
                     'Published on': published_at,
                     'Source': source
@@ -206,8 +213,8 @@ def fetch_direct_rss(
                 if published_at.date() not in wanted_dates:
                     continue
 
-            headline = entry.title or ""
-            summary = entry.get("summary", "") or ""
+            headline = clean_html(entry.title)
+            summary =  clean_html(entry.get("summary", ""))
             content = f"{headline} {summary}".lower()
 
             has_expanded = False
