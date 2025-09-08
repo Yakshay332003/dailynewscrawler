@@ -246,11 +246,9 @@ if submitted:
                 start_date=start_date,
                 end_date=end_date
             )
+            
     
-            # Expand keywords (related terms for each keyword)
-            expanded_keywords = []
            
-            expanded_keywords = list(set( keywords))
     
             # Mark HasExpandedKeyword
             for a in articles:
