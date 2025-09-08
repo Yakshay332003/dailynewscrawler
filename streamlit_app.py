@@ -67,7 +67,16 @@ preferred_sources = [
     'pharmavoice',
     'biospace',
     'pharmaceutical technology',
-    'endpoints news'
+    'endpoints news',
+    'life science leader',
+'crunchbase news',
+    'endpoints news',
+    'pharmavoice',
+    'insights.siteline',
+    'pharmaceutical technology',
+    'life science leader',
+
+    
 ]
 def source_priority(source):
     source_lower = str(source).lower()
