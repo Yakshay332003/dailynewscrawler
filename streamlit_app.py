@@ -203,7 +203,7 @@ def fetch_direct_rss(
 
     try:
         feed = feedparser.parse(rss_url)
-        for entry in feed.entries[:max_articles]:
+        for entry in feed.entries:
             published_at = None
             if entry.get("published_parsed"):
                 published_at = datetime(*entry.published_parsed[:6])
