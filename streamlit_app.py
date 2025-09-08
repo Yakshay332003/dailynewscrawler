@@ -258,7 +258,7 @@ if submitted:
                 has_all_keywords = all(kw.lower() in headline_text for kw in keywords)
     
                 # Check if any expanded keyword is present
-                has_expanded = any(ek.lower() in headline_text for ek in expanded_keywords)
+                has_expanded = any(ek.lower() in headline_text for ek in keywords)
     
                 a["HasExpandedKeyword"] = has_all_keywords and has_expanded
                 a["Keyword"] = combined_query
