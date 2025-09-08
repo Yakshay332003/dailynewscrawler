@@ -49,7 +49,6 @@ model = load_sentence_model()
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
 category_names = list(category_texts.keys())
-client = InferenceClient(model="mistralai/Mistral-7B-Instruct-v0.1")
 
 
 # -------------------------------
@@ -85,22 +84,31 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 def get_related_keywords(keyword, top_n=5):
+    try:
+        model = load_gemini_model()
+
+        prompt = (
+    f" if the {keyword} is not the company name then List {top_n} distinct, domain-specific keywords related to '{keyword}'  "
     
-    prompt = (
-            f"If the term '{keyword}' is not a company name, list {top_n} distinct, domain-specific keywords related to it.\n"
-            f"If '{keyword}' is a company name, provide the full company name and its subsidiaries.\n"
-            f"Respond with a comma-separated list only."
-     )
+    f"If '{keyword}' is a company name,Give full company name and also provide  all subsidiaries under that company. "
+    
+    f"Respond with a comma-separated list only."
+)
 
-    response = client.text_generation(prompt, max_new_tokens=100)
-    print("HF API raw response:", response)
 
-        # Parse keywords
-    keywords = re.split(r'[,\n]', response)
-    keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
-    keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
-    return list(dict.fromkeys(keywords))[:top_n]
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        print("Gemini raw response:", text)
 
+        # Parse the keywords
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
+
+    except Exception as e:
+        logging.error(f"Gemini keyword generation failed for {keyword}: {e}")
+        return []
 def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", start_date=None, end_date=None):
     articles = []
     today = datetime.now().date()
