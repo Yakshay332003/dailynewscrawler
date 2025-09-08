@@ -236,7 +236,7 @@ if submitted:
     with st.spinner("🔎 Fetching articles..."):
         if search_mode == "All keywords together (AND)":
             # Combine all keywords in one query (space = AND in Google News)
-            combined_query = " ".join([f'"{kw}"' for kw in keywords])
+            combined_query = " ".join([f"{kw}" for kw in keywords])
     
             # Fetch articles for the combined query
             articles = fetch_latest_headlines_rss(
