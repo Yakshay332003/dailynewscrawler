@@ -163,9 +163,23 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
                     'Published on': published_at,
                     'Source': source
                 })
-                if len(articles)>=max_articles:
-                    break
-        
+               
+                if timeline_choice == "Today":
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() == today]
+                elif timeline_choice == "Yesterday":
+                    yday = today - timedelta(days=1)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() == yday]
+                elif timeline_choice == "Last 7 Days":
+                    week_ago = today - timedelta(days=7)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= week_ago]
+                elif timeline_choice == "Last 1 Month":
+                    month_ago = today - timedelta(days=30)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= month_ago]
+                elif timeline_choice == "Custom Range" and start_date and end_date:
+                    articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
+                
+                    
+            
         
         
                
@@ -185,21 +199,7 @@ def fetch_latest_headlines_rss(keyword,max_articles,  timeline_choice="All", sta
         
         
 
-        if timeline_choice != "All":
-            today = datetime.now().date()
-            if timeline_choice == "Today":
-                articles = [a for a in articles if a['Published on'] and a['Published on'].date() == today]
-            elif timeline_choice == "Yesterday":
-                yday = today - timedelta(days=1)
-                articles = [a for a in articles if a['Published on'] and a['Published on'].date() == yday]
-            elif timeline_choice == "Last 7 Days":
-                week_ago = today - timedelta(days=7)
-                articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= week_ago]
-            elif timeline_choice == "Last 1 Month":
-                month_ago = today - timedelta(days=30)
-                articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= month_ago]
-            elif timeline_choice == "Custom Range" and start_date and end_date:
-                articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
+        
         if len(articles)>=max_articles:
             break
         
