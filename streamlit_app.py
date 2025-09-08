@@ -234,59 +234,59 @@ if submitted:
     all_articles = []
 
     with st.spinner("🔎 Fetching articles..."):
-    if search_mode == "All keywords together (AND)":
-        # Combine all keywords in one query (space = AND in Google News)
-        combined_query = " ".join([f'"{kw}"' for kw in keywords])
-
-        # Fetch articles for the combined query
-        articles = fetch_latest_headlines_rss(
-            combined_query,
-            max_articles,
-            timeline_choice=timeline_choice,
-            start_date=start_date,
-            end_date=end_date
-        )
-
-        # Expand keywords (related terms for each keyword)
-        expanded_keywords = []
-       
-        expanded_keywords = list(set( keywords))
-
-        # Mark HasExpandedKeyword
-        for a in articles:
-            headline_text = a["Headline"].lower()
-
-            # Check if all original keywords are present
-            has_all_keywords = all(kw.lower() in headline_text for kw in keywords)
-
-            # Check if any expanded keyword is present
-            has_expanded = any(ek.lower() in headline_text for ek in expanded_keywords)
-
-            a["HasExpandedKeyword"] = has_all_keywords and has_expanded
-            a["Keyword"] = combined_query
-            all_articles.append(a)
-
-    else:  # Individual keywords (OR mode, current logic)
-        for keyword in keywords:
-            related_kws = get_related_keywords(keyword, top_n=5)
-            related_kws = list(set(related_kws))
-            st.write(f"Related keywords for **{keyword}**: {related_kws}") 
-
-            expanded_keywords = related_kws + [keyword]
-            for kw in expanded_keywords:
-                articles = fetch_latest_headlines_rss(
-                    kw,
-                    max_articles,
-                    timeline_choice=timeline_choice,
-                    start_date=start_date,
-                    end_date=end_date
-                )
-                for a in articles:
-                    headline_text = a["Headline"].lower()
-                    a["HasExpandedKeyword"] = any(
-                        ek.lower() in headline_text for ek in expanded_keywords
+        if search_mode == "All keywords together (AND)":
+            # Combine all keywords in one query (space = AND in Google News)
+            combined_query = " ".join([f'"{kw}"' for kw in keywords])
+    
+            # Fetch articles for the combined query
+            articles = fetch_latest_headlines_rss(
+                combined_query,
+                max_articles,
+                timeline_choice=timeline_choice,
+                start_date=start_date,
+                end_date=end_date
+            )
+    
+            # Expand keywords (related terms for each keyword)
+            expanded_keywords = []
+           
+            expanded_keywords = list(set( keywords))
+    
+            # Mark HasExpandedKeyword
+            for a in articles:
+                headline_text = a["Headline"].lower()
+    
+                # Check if all original keywords are present
+                has_all_keywords = all(kw.lower() in headline_text for kw in keywords)
+    
+                # Check if any expanded keyword is present
+                has_expanded = any(ek.lower() in headline_text for ek in expanded_keywords)
+    
+                a["HasExpandedKeyword"] = has_all_keywords and has_expanded
+                a["Keyword"] = combined_query
+                all_articles.append(a)
+    
+        else:  # Individual keywords (OR mode, current logic)
+            for keyword in keywords:
+                related_kws = get_related_keywords(keyword, top_n=5)
+                related_kws = list(set(related_kws))
+                st.write(f"Related keywords for **{keyword}**: {related_kws}") 
+    
+                expanded_keywords = related_kws + [keyword]
+                for kw in expanded_keywords:
+                    articles = fetch_latest_headlines_rss(
+                        kw,
+                        max_articles,
+                        timeline_choice=timeline_choice,
+                        start_date=start_date,
+                        end_date=end_date
                     )
-                    all_articles.append(a)
+                    for a in articles:
+                        headline_text = a["Headline"].lower()
+                        a["HasExpandedKeyword"] = any(
+                            ek.lower() in headline_text for ek in expanded_keywords
+                        )
+                        all_articles.append(a)
 
         
 
