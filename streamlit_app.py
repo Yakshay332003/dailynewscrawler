@@ -212,6 +212,12 @@ with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
     max_articles = st.number_input("Max articles to display per keyword (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range"])
+    search_mode = st.radio(
+    "🔎 Search Mode",
+    ["Individual keywords (OR)", "All keywords together (AND)"],
+    index=0
+)
+
     start_date = end_date = None
     if timeline_choice == "Custom Range":
         start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
@@ -228,18 +234,49 @@ if submitted:
     all_articles = []
 
     with st.spinner("🔎 Fetching articles..."):
+    if search_mode == "All keywords together (AND)":
+        # Combine all keywords in one query (space = AND in Google News)
+        combined_query = " ".join([f'"{kw}"' for kw in keywords])
+
+        # Fetch articles for the combined query
+        articles = fetch_latest_headlines_rss(
+            combined_query,
+            max_articles,
+            timeline_choice=timeline_choice,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Expand keywords (related terms for each keyword)
+        expanded_keywords = []
+       
+        expanded_keywords = list(set( keywords))
+
+        # Mark HasExpandedKeyword
+        for a in articles:
+            headline_text = a["Headline"].lower()
+
+            # Check if all original keywords are present
+            has_all_keywords = all(kw.lower() in headline_text for kw in keywords)
+
+            # Check if any expanded keyword is present
+            has_expanded = any(ek.lower() in headline_text for ek in expanded_keywords)
+
+            a["HasExpandedKeyword"] = has_all_keywords and has_expanded
+            a["Keyword"] = combined_query
+            all_articles.append(a)
+
+    else:  # Individual keywords (OR mode, current logic)
         for keyword in keywords:
             related_kws = get_related_keywords(keyword, top_n=5)
-
-            related_kws=list(set(related_kws))
+            related_kws = list(set(related_kws))
             st.write(f"Related keywords for **{keyword}**: {related_kws}") 
 
-            expanded_keywords = related_kws+[keyword]
+            expanded_keywords = related_kws + [keyword]
             for kw in expanded_keywords:
                 articles = fetch_latest_headlines_rss(
                     kw,
                     max_articles,
-                   
                     timeline_choice=timeline_choice,
                     start_date=start_date,
                     end_date=end_date
@@ -247,9 +284,12 @@ if submitted:
                 for a in articles:
                     headline_text = a["Headline"].lower()
                     a["HasExpandedKeyword"] = any(
-                ek.lower() in headline_text for ek in expanded_keywords
+                        ek.lower() in headline_text for ek in expanded_keywords
                     )
                     all_articles.append(a)
+
+        
+
     if not all_articles:
         st.error("⚠️ No news found for the given keywords and timeline.")
         st.stop()
