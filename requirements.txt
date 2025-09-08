@@ -15,7 +15,7 @@ google-generativeai
 httpx
 langchain-community
 bs4
-
+huggingface_hub
 unstructured
 
 
