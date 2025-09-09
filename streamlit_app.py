@@ -155,6 +155,20 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
                     'Published on': published_at,
                     'Source': source
                 })
+                if timeline_choice == "Today":
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() == today]
+                elif timeline_choice == "Yesterday":
+                    yday = today - timedelta(days=1)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() == yday]
+                elif timeline_choice == "Last 7 Days":
+                    week_ago = today - timedelta(days=7)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= week_ago]
+                elif timeline_choice == "Last 1 Month":
+                    month_ago = today - timedelta(days=30)
+                    articles = [a for a in articles if a['Published on'] and a['Published on'].date() >= month_ago]
+                elif timeline_choice == "Custom Range" and start_date and end_date:
+                    articles = [a for a in articles if a['Published on'] and start_date <= a['Published on'].date() <= end_date]
+                
 
             # break early if we've collected enough (entries across dates will be appended)
             if len(articles) >= max_articles:
@@ -167,8 +181,7 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
 
     return articles
 
-import requests
-from bs4 import BeautifulSoup
+
 
 def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                      timeline_choice="All", start_date=None, end_date=None, search_logic="OR"):
@@ -310,7 +323,6 @@ if submitted:
                 # direct already has HasExpandedKeyword set
                 all_articles.extend(direct)
 
-            # Google News fallback: combine keywords into quoted AND query
             combined_query = " ".join([f'"{kw}"' for kw in keywords])
             g_articles = fetch_latest_headlines_rss(
                 combined_query,
