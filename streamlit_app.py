@@ -167,80 +167,87 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
 
     return articles
 
-def fetch_direct_rss(
-    source,
-    rss_url,
-    max_articles=100,
-    keywords=None,
-    timeline_choice="All",
-    start_date=None,
-    end_date=None,
-    search_logic="OR"  # "OR" or "AND"
-):
-    """
-    Fetch from a source RSS, with:
-    - timeline_choice: "Today","Yesterday","Last 7 Days","Last 1 Month","Custom Range","All"
-    - keywords: list of keywords to filter headlines/content (if None -> no keyword filter)
-    - search_logic: "OR" or "AND" for keywords
-    Returns list of dicts matching your main pipeline schema (adds HasExpandedKeyword flag)
-    """
+import requests
+from bs4 import BeautifulSoup
+
+def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
+                     timeline_choice="All", start_date=None, end_date=None, search_logic="OR"):
     articles = []
     today = datetime.now().date()
 
-    # compute acceptable date values for timeline_choice
-    if timeline_choice == "Today":
-        wanted_dates = {today}
-    elif timeline_choice == "Yesterday":
-        wanted_dates = {today - timedelta(days=1)}
-    elif timeline_choice == "Last 7 Days":
-        wanted_dates = {today - timedelta(days=i) for i in range(7)}
-    elif timeline_choice == "Last 1 Month":
-        wanted_dates = {today - timedelta(days=i) for i in range(30)}
-    elif timeline_choice == "Custom Range" and start_date and end_date:
-        wanted_dates = set(pd.date_range(start=start_date, end=end_date).date)
-    else:
-        wanted_dates = None  # no restriction
+    # Date filtering setup
+    if timeline_choice != "All":
+        if timeline_choice == "Last 7 days":
+            start_date = today - timedelta(days=7)
+            end_date = today
+        elif timeline_choice == "Last 30 days":
+            start_date = today - timedelta(days=30)
+            end_date = today
+        elif timeline_choice == "Custom" and (not start_date or not end_date):
+            logging.warning("Custom requires start_date & end_date")
+            return []
 
     try:
         feed = feedparser.parse(rss_url)
-        for entry in feed.entries:
+
+        for entry in feed.entries[:max_articles]:
             published_at = None
             if entry.get("published_parsed"):
-                published_at = datetime(*entry.published_parsed[:6])
+                published_at = datetime(*entry.published_parsed[:6]).date()
 
-            # timeline filtering
-            if wanted_dates is not None and published_at is not None:
-                if published_at.date() not in wanted_dates:
+            # Timeline filter
+            if start_date and end_date and published_at:
+                if not (start_date <= published_at <= end_date):
                     continue
 
             headline = clean_html(entry.title)
-            summary =  clean_html(entry.get("summary", ""))
+            summary = clean_html(entry.get("summary", ""))
+
+            # Start with headline + summary
             content = f"{headline} {summary}".lower()
 
-            has_expanded = False
-            kw_label = source
+            # ✅ If feed has full content field, use it
+            if "content" in entry:
+                try:
+                    feed_content = " ".join([c.value for c in entry.content])
+                    content += " " + clean_html(feed_content).lower()
+                except Exception:
+                    pass
+
+            # ✅ If still no keyword match → fetch full article
             if keywords:
-                kw_list = [k.lower() for k in keywords]
-                if search_logic.upper() == "OR":
-                    has_expanded = any(k in content for k in kw_list)
-                else:  # AND
-                    has_expanded = all(k in content for k in kw_list)
-                kw_label = ", ".join(keywords)
+                kw_list = [kw.lower() for kw in keywords]
 
-                # if keywords specified and none matched -> skip
-                if not has_expanded:
-                    continue
-            else:
-                # If no keywords provided, we will include everything (leave has_expanded False)
-                has_expanded = False
+                def keyword_match(text):
+                    if search_logic == "OR":
+                        return any(kw in text for kw in kw_list)
+                    elif search_logic == "AND":
+                        return all(kw in text for kw in kw_list)
+                    return False
 
+                if not keyword_match(content):
+                    try:
+                        resp = requests.get(entry.link, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+                        if resp.status_code == 200:
+                            soup = BeautifulSoup(resp.text, "html.parser")
+                            paragraphs = " ".join(p.get_text() for p in soup.find_all("p"))
+                            content += " " + paragraphs.lower()
+
+                            if not keyword_match(content):
+                                continue  # still no match → skip
+                        else:
+                            continue  # failed request → skip
+                    except Exception as e:
+                        logging.warning(f"Failed to fetch article text: {e}")
+                        continue
+
+            # If we reach here → article is relevant
             articles.append({
-                'Keyword': kw_label,
+                'Keyword': ", ".join(keywords) if keywords else source,
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_at,
-                'Source': source,
-                'HasExpandedKeyword': has_expanded
+                'Source': source
             })
 
     except Exception as e:
