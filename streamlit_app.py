@@ -445,8 +445,4 @@ if 'articles_df' in st.session_state:
             st.markdown(f"**Source:** {row['Source']}")
             st.markdown(f"**Category:** {row['Category']}")
             st.markdown(f"[🔗 Read Full Article]({row['URL']})")
-            # Optional: show snippet or extracted content on demand
-            if st.button(f"Fetch content ({idx})"):
-                with st.spinner("Extracting..."):
-                    content = extract_article_text(row['URL'])
-                    st.write(content)
+           
