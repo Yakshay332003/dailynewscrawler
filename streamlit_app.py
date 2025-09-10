@@ -411,6 +411,7 @@ if submitted:
     # Category classification and priority
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
     df['priority'] = df['Source'].apply(source_priority)
+    df['Source']=np.where(df['Source'].isin(preferred_sources),"Preferred sources",df['Source'])
 
    
     df = df.sort_values(by=['priority','HasExpandedKeyword', 'Published on'], ascending=[True,False, False])
