@@ -184,6 +184,23 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
 
 def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                      timeline_choice="All", start_date=None, end_date=None, search_logic="OR"):
+    """
+    Fetch articles from a direct RSS feed with optional keyword and timeline filtering.
+
+    Args:
+        source (str): Source name.
+        rss_url (str): RSS feed URL.
+        max_articles (int): Max number of articles to fetch.
+        keywords (list[str], optional): List of keywords to filter articles. Defaults to None.
+        timeline_choice (str, optional): Timeline filter ("Today", "Yesterday", "Last 7 Days", etc.). Defaults to "All".
+        start_date (date, optional): Custom start date (if timeline_choice=="Custom Range").
+        end_date (date, optional): Custom end date.
+        search_logic (str, optional): "AND" or "OR" keyword matching logic. Defaults to "OR".
+
+    Returns:
+        list[dict]: List of article dicts with keys: 'Keyword', 'Headline', 'URL', 'Published on', 'Source', 'HasExpandedKeyword'.
+    """
+    import pytz
     articles = []
     today = datetime.now().date()
 
@@ -206,13 +223,11 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         end_datetime = datetime.combine(today, datetime.max.time())
         date_range = (start_datetime, end_datetime)
     elif timeline_choice == "Custom Range" and start_date and end_date:
-        start_datetime = datetime.combine(pd.to_datetime(start_date).date(), datetime.min.time())
-        end_datetime = datetime.combine(pd.to_datetime(end_date).date(), datetime.max.time())
+        start_datetime = datetime.combine(start_date, datetime.min.time())
+        end_datetime = datetime.combine(end_date, datetime.max.time())
         date_range = (start_datetime, end_datetime)
-    elif timeline_choice == "All":
-        date_range = None  # No filtering
     else:
-        date_range = None  # Default no filtering
+        date_range = None  # No filtering
 
     try:
         feed = feedparser.parse(rss_url)
@@ -257,6 +272,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                     return False
 
                 if not keyword_match(content):
+                    # Fallback: load full article text and check keywords there
                     try:
                         loader = UnstructuredURLLoader(urls=[entry.link])
                         docs = loader.load()
@@ -266,10 +282,9 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                             continue  # skip article if no match
 
                     except Exception as e:
-                        logging.warning(f"UnstructuredURLLoader failed for {entry.link}: {e}")
+                        # Can't load full article, so skip
                         continue
 
-            # Append the relevant article
             articles.append({
                 'Keyword': " ".join(keywords) if keywords else source,
                 'Headline': headline,
@@ -283,6 +298,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         logging.error(f"RSS fetch failed for {source}: {e}")
 
     return articles
+
 def extract_article_text(url):
     try:
         loader = UnstructuredURLLoader(urls=[url])
