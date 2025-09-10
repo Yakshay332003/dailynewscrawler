@@ -256,7 +256,8 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_at,
-                'Source': "Prefered sources"
+                'Source': "Prefered sources",
+                'HasExpandedKeyword':True
             })
 
     except Exception as e:
@@ -389,11 +390,7 @@ if submitted:
     # Ensure Published on is datetime
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
 
-    # If HasExpandedKeyword missing (from some Google News entries), set to False
-    if 'HasExpandedKeyword' not in df.columns:
-        df['HasExpandedKeyword'] = False
-    else:
-        df['HasExpandedKeyword'] = df['HasExpandedKeyword'].fillna(False)
+  
 
     # Category classification and priority
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
