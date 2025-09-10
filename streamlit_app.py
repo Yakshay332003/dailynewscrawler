@@ -18,13 +18,11 @@ import os
 from huggingface_hub import InferenceClient
 from langchain.document_loaders import UnstructuredURLLoader  # used in extract_article_text
 import re
+from html import unescape
+def clean_html(text):
+    """Simple HTML cleaner (you may already have this)."""
+    return unescape(BeautifulSoup(text, "html.parser").get_text())
 
-def clean_html(raw_text):
-    """Remove HTML tags from a string."""
-    if not raw_text:
-        return ""
-    clean = re.compile('<.*?>')
-    return re.sub(clean, '', raw_text)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # -------------------------------
@@ -188,7 +186,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     articles = []
     today = datetime.now().date()
 
-    # Date filtering setup
+    # Timeline filtering
     if timeline_choice != "All":
         if timeline_choice == "Last 7 days":
             start_date = today - timedelta(days=7)
@@ -216,10 +214,10 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
             headline = clean_html(entry.title)
             summary = clean_html(entry.get("summary", ""))
 
-            # Start with headline + summary
+            # Initial content from title and summary
             content = f"{headline} {summary}".lower()
 
-            # ✅ If feed has full content field, use it
+            # Add content from 'content' field if present
             if "content" in entry:
                 try:
                     feed_content = " ".join([c.value for c in entry.content])
@@ -227,7 +225,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 except Exception:
                     pass
 
-            # ✅ If still no keyword match → fetch full article
+            # Keyword filtering
             if keywords:
                 kw_list = [kw.lower() for kw in keywords]
 
@@ -238,29 +236,27 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                         return all(kw in text for kw in kw_list)
                     return False
 
+                # If not matched yet, use UnstructuredURLLoader
                 if not keyword_match(content):
                     try:
-                        resp = requests.get(entry.link, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-                        if resp.status_code == 200:
-                            soup = BeautifulSoup(resp.text, "html.parser")
-                            paragraphs = " ".join(p.get_text() for p in soup.find_all("p"))
-                            content += " " + paragraphs.lower()
+                        loader = UnstructuredURLLoader(urls=[entry.link])
+                        docs = loader.load()
+                        full_text = " ".join(doc.page_content for doc in docs).lower()
 
-                            if not keyword_match(content):
-                                continue  # still no match → skip
-                        else:
-                            continue  # failed request → skip
+                        if not keyword_match(full_text):
+                            continue  # still no match → skip
+
                     except Exception as e:
-                        logging.warning(f"Failed to fetch article text: {e}")
+                        logging.warning(f"UnstructuredURLLoader failed for {entry.link}: {e}")
                         continue
 
             # If we reach here → article is relevant
             articles.append({
-                'Keyword': ", ".join(keywords) if keywords else source,
+                'Keyword': " ".join(keywords) if keywords else source,
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_at,
-                'Source': source
+                'Source': "Prefered sources"
             })
 
     except Exception as e:
