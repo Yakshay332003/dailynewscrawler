@@ -187,16 +187,22 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     today = datetime.now().date()
 
     # Timeline filtering
-    if timeline_choice != "All":
-        if timeline_choice == "Last 7 days":
-            start_date = today - timedelta(days=7)
-            end_date = today
-        elif timeline_choice == "Last 30 days":
-            start_date = today - timedelta(days=30)
-            end_date = today
-        elif timeline_choice == "Custom" and (not start_date or not end_date):
-            logging.warning("Custom requires start_date & end_date")
-            return []
+    today = datetime.now().date()
+
+    # Determine date_range (for compatibility we support 'Today','Yesterday','Last 7 Days','Last 1 Month','Custom Range')
+    if timeline_choice == "Today":
+        date_range = [today]
+    elif timeline_choice == "Yesterday":
+        date_range = [today - timedelta(days=1)]
+    elif timeline_choice == "Last 7 Days":
+        date_range = [today - timedelta(days=i) for i in range(7)]
+    elif timeline_choice == "Last 1 Month":
+        date_range = [today - timedelta(days=i) for i in range(30)]
+    elif timeline_choice == "Custom Range" and start_date and end_date:
+        date_range = pd.date_range(start=start_date, end=end_date).to_pydatetime().tolist()
+        date_range = [d.date() for d in date_range]
+    else:
+        date_range = [None]
 
     try:
         feed = feedparser.parse(rss_url)
@@ -207,9 +213,10 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 published_at = datetime(*entry.published_parsed[:6]).date()
 
             # Timeline filter
-            if start_date and end_date and published_at:
-                if not (start_date <= published_at <= end_date):
-                    continue
+            if not published_at:
+                continue
+            if published_at not in date_range:
+                continue
 
             headline = clean_html(entry.title)
             summary = clean_html(entry.get("summary", ""))
@@ -387,6 +394,7 @@ if submitted:
 
     # Ensure Published on is datetime
     df['Published on'] = pd.to_datetime(df['Published on'], errors='coerce')
+    
 
   
 
@@ -399,6 +407,8 @@ if submitted:
 
     # Drop helper cols and dedupe
     df = df.drop(columns=['priority'], errors='ignore')
+    df['Headline'] = df['Headline'].astype(str).apply(lambda x: x.split("-")[0])
+
     df = df.drop_duplicates(subset=['Headline'])
 
     st.session_state['articles_df'] = df
