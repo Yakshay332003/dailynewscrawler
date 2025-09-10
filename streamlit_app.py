@@ -186,10 +186,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     articles = []
     today = datetime.now().date()
 
-    # Timeline filtering
-    today = datetime.now().date()
-
-    # Determine date_range (for compatibility we support 'Today','Yesterday','Last 7 Days','Last 1 Month','Custom Range')
+    # Determine date_range for timeline filtering
     if timeline_choice == "Today":
         date_range = [today]
     elif timeline_choice == "Yesterday":
@@ -201,27 +198,33 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     elif timeline_choice == "Custom Range" and start_date and end_date:
         date_range = pd.date_range(start=start_date, end=end_date).to_pydatetime().tolist()
         date_range = [d.date() for d in date_range]
+    elif timeline_choice == "All":
+        date_range = None  # No date filtering
     else:
-        date_range = [None]
+        # Default: no filtering if timeline_choice unrecognized
+        date_range = None
 
     try:
         feed = feedparser.parse(rss_url)
 
         for entry in feed.entries:
+            if len(articles) >= max_articles:
+                break
+
+            # Extract published date
             published_at = None
             if entry.get("published_parsed"):
                 published_at = datetime(*entry.published_parsed[:6]).date()
 
-            # Timeline filter
-            if not published_at:
-                continue
-            if published_at not in date_range:
-                continue
+            # Skip if date filtering applied and published_at not in range
+            if date_range is not None:
+                if not published_at or published_at not in date_range:
+                    continue
 
             headline = clean_html(entry.title)
             summary = clean_html(entry.get("summary", ""))
 
-            # Initial content from title and summary
+            # Combine headline and summary content
             content = f"{headline} {summary}".lower()
 
             # Add content from 'content' field if present
@@ -243,7 +246,6 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                         return all(kw in text for kw in kw_list)
                     return False
 
-                # If not matched yet, use UnstructuredURLLoader
                 if not keyword_match(content):
                     try:
                         loader = UnstructuredURLLoader(urls=[entry.link])
@@ -251,20 +253,20 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                         full_text = " ".join(doc.page_content for doc in docs).lower()
 
                         if not keyword_match(full_text):
-                            continue  # still no match → skip
+                            continue  # no match, skip article
 
                     except Exception as e:
                         logging.warning(f"UnstructuredURLLoader failed for {entry.link}: {e}")
                         continue
 
-            # If we reach here → article is relevant
+            # Add relevant article
             articles.append({
                 'Keyword': " ".join(keywords) if keywords else source,
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_at,
-                'Source': "Prefered sources",
-                'HasExpandedKeyword':True
+                'Source': "Preferred sources",
+                'HasExpandedKeyword': True
             })
 
     except Exception as e:
