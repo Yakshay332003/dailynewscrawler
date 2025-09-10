@@ -271,17 +271,16 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
 
                 if not keyword_match(content):
                     # Fallback: load full article text and check keywords there
-                    try:
-                        loader = UnstructuredURLLoader(urls=[entry.link])
-                        docs = loader.load()
-                        full_text = " ".join(doc.page_content for doc in docs).lower()
+                    
+                    loader = UnstructuredURLLoader(urls=[entry.link])
+                    docs = loader.load()
+                    full_text = " ".join(doc.page_content for doc in docs).lower()
 
-                        if not keyword_match(full_text):
-                            continue  # skip article if no match
+                    if not keyword_match(full_text):
+                        
+                        continue  # skip article if no match
 
-                    except Exception as e:
-                        # Can't load full article, so skip
-                        continue
+                
 
             articles.append({
                 'Keyword': " ".join(keywords) if keywords else source,
