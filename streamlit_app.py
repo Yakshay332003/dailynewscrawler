@@ -417,7 +417,7 @@ if submitted:
 
     # Drop helper cols and dedupe
     df = df.drop(columns=['priority'], errors='ignore')
-    df['Headline'] = df['Headline'].astype(str).apply(lambda x: x.split("-")[0])
+    
 
     df = df.drop_duplicates(subset=['Headline'])
 
