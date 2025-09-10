@@ -184,22 +184,8 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
 
 def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                      timeline_choice="All", start_date=None, end_date=None, search_logic="OR"):
-    """
-    Fetch articles from a direct RSS feed with optional keyword and timeline filtering.
-
-    Args:
-        source (str): Source name.
-        rss_url (str): RSS feed URL.
-        max_articles (int): Max number of articles to fetch.
-        keywords (list[str], optional): List of keywords to filter articles. Defaults to None.
-        timeline_choice (str, optional): Timeline filter ("Today", "Yesterday", "Last 7 Days", etc.). Defaults to "All".
-        start_date (date, optional): Custom start date (if timeline_choice=="Custom Range").
-        end_date (date, optional): Custom end date.
-        search_logic (str, optional): "AND" or "OR" keyword matching logic. Defaults to "OR".
-
-    Returns:
-        list[dict]: List of article dicts with keys: 'Keyword', 'Headline', 'URL', 'Published on', 'Source', 'HasExpandedKeyword'.
-    """
+   
+  
     import pytz
     articles = []
     today = datetime.now().date()
@@ -283,7 +269,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 
 
             articles.append({
-                'Keyword': " ".join(keywords) if keywords else source,
+                'Keyword': "Entered Keyword",
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_dt.date() if published_dt else None,
@@ -426,7 +412,7 @@ if submitted:
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
     df['priority'] = df['Source'].apply(source_priority)
 
-    # Sort: prefer HasExpandedKeyword, then preferred source priority (0 first), then newest
+   
     df = df.sort_values(by=['priority','HasExpandedKeyword', 'Published on'], ascending=[True,False, False])
 
     # Drop helper cols and dedupe
