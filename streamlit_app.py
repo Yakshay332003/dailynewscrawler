@@ -68,7 +68,7 @@ SOURCE_FEEDS = {
     "crunchbase news": "https://news.crunchbase.com/feed/"
 }
 
-preferred_sources = list(SOURCE_FEEDS.keys())
+preferred_sources = list(SOURCE_FEEDS.keys())+list("Preferred sources")
 
 # -------------------------------
 # --- Helper Functions
@@ -417,6 +417,7 @@ if submitted:
 
     # Drop helper cols and dedupe
     df = df.drop(columns=['priority'], errors='ignore')
+    
     
 
     df = df.drop_duplicates(subset=['Headline'])
