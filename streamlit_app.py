@@ -233,9 +233,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         feed = feedparser.parse(rss_url)
 
         for entry in feed.entries:
-            if len(articles) >= max_articles:
-                break
-
+            
             # Extract published datetime (try published_parsed or updated_parsed)
             published_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
             if published_parsed:
