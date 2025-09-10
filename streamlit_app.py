@@ -201,7 +201,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     try:
         feed = feedparser.parse(rss_url)
 
-        for entry in feed.entries[:max_articles]:
+        for entry in feed.entries:
             published_at = None
             if entry.get("published_parsed"):
                 published_at = datetime(*entry.published_parsed[:6]).date()
@@ -282,7 +282,7 @@ st.title("📰 Hunt News by Keyword ")
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles to display per keyword (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
+    max_articles = st.number_input("Max articles to display  (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range", "All"])
     search_mode = st.radio("🔎 Search Mode", ["Individual keywords (OR)", "All keywords together (AND)"], index=0)
 
@@ -323,7 +323,7 @@ if submitted:
             combined_query = " ".join([f'"{kw}"' for kw in keywords])
             g_articles = fetch_latest_headlines_rss(
                 combined_query,
-                max_articles,
+               1000,
                 timeline_choice=timeline_choice,
                 start_date=start_date,
                 end_date=end_date
@@ -334,7 +334,7 @@ if submitted:
                 has_all_keywords = all(kw.lower() in headline_text for kw in keywords)
                 has_expanded = has_all_keywords  # since this is AND mode
                 a["HasExpandedKeyword"] = has_expanded
-                a["Keyword"] = combined_query
+                a["Keyword"] =  " ".join(keywords) 
                 all_articles.append(a)
 
         else:  # Individual keywords (OR)
@@ -360,16 +360,14 @@ if submitted:
                     )
                     # direct includes HasExpandedKeyword which indicates whether any expanded kw matched
                     # tag the record's Keyword to show which base keyword triggered this (use keyword)
-                    for d in direct:
-                        # set Keyword field to base keyword for filtering purposes, while preserving the matched keyword list in 'MatchedKeywords'
-                        d['Keyword'] = keyword
+                    
                     all_articles.extend(direct)
 
                 # Google News fallback: call for each expanded kw (OR-mode behavior you had before)
                 for kw in expanded_keywords:
                     g_articles = fetch_latest_headlines_rss(
                         kw,
-                        max_articles,
+                        1000,
                         timeline_choice=timeline_choice,
                         start_date=start_date,
                         end_date=end_date
@@ -377,7 +375,7 @@ if submitted:
                     for a in g_articles:
                         headline_text = str(a["Headline"]).lower()
                         a["HasExpandedKeyword"] = any(ek.lower() in headline_text for ek in expanded_keywords)
-                        a["Keyword"] = keyword  # tag to the base keyword
+                        a["Keyword"] = kw 
                         all_articles.append(a)
 
     if not all_articles:
