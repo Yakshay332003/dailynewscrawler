@@ -181,28 +181,38 @@ def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All",
 
 
 
+
 def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                      timeline_choice="All", start_date=None, end_date=None, search_logic="OR"):
     articles = []
     today = datetime.now().date()
 
-    # Determine date_range for timeline filtering
+    # Setup datetime range for filtering based on timeline_choice
     if timeline_choice == "Today":
-        date_range = [today]
+        start_datetime = datetime.combine(today, datetime.min.time())
+        end_datetime = datetime.combine(today, datetime.max.time())
+        date_range = (start_datetime, end_datetime)
     elif timeline_choice == "Yesterday":
-        date_range = [today - timedelta(days=1)]
+        yesterday = today - timedelta(days=1)
+        start_datetime = datetime.combine(yesterday, datetime.min.time())
+        end_datetime = datetime.combine(yesterday, datetime.max.time())
+        date_range = (start_datetime, end_datetime)
     elif timeline_choice == "Last 7 Days":
-        date_range = [today - timedelta(days=i) for i in range(7)]
+        start_datetime = datetime.combine(today - timedelta(days=6), datetime.min.time())
+        end_datetime = datetime.combine(today, datetime.max.time())
+        date_range = (start_datetime, end_datetime)
     elif timeline_choice == "Last 1 Month":
-        date_range = [today - timedelta(days=i) for i in range(30)]
+        start_datetime = datetime.combine(today - timedelta(days=29), datetime.min.time())
+        end_datetime = datetime.combine(today, datetime.max.time())
+        date_range = (start_datetime, end_datetime)
     elif timeline_choice == "Custom Range" and start_date and end_date:
-        date_range = pd.date_range(start=start_date, end=end_date).to_pydatetime().tolist()
-        date_range = [d.date() for d in date_range]
+        start_datetime = datetime.combine(pd.to_datetime(start_date).date(), datetime.min.time())
+        end_datetime = datetime.combine(pd.to_datetime(end_date).date(), datetime.max.time())
+        date_range = (start_datetime, end_datetime)
     elif timeline_choice == "All":
-        date_range = None  # No date filtering
+        date_range = None  # No filtering
     else:
-        # Default: no filtering if timeline_choice unrecognized
-        date_range = None
+        date_range = None  # Default no filtering
 
     try:
         feed = feedparser.parse(rss_url)
@@ -211,23 +221,23 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
             if len(articles) >= max_articles:
                 break
 
-            # Extract published date
-            published_at = None
-            if entry.get("published_parsed"):
-                published_at = datetime(*entry.published_parsed[:6]).date()
+            # Extract published datetime (try published_parsed or updated_parsed)
+            published_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
+            if published_parsed:
+                published_dt = datetime(*published_parsed[:6])
+            else:
+                published_dt = None
 
-            # Skip if date filtering applied and published_at not in range
+            # Filter by timeline
             if date_range is not None:
-                if not published_at or published_at not in date_range:
+                if not published_dt or not (date_range[0] <= published_dt <= date_range[1]):
                     continue
 
             headline = clean_html(entry.title)
             summary = clean_html(entry.get("summary", ""))
 
-            # Combine headline and summary content
             content = f"{headline} {summary}".lower()
 
-            # Add content from 'content' field if present
             if "content" in entry:
                 try:
                     feed_content = " ".join([c.value for c in entry.content])
@@ -235,7 +245,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 except Exception:
                     pass
 
-            # Keyword filtering
+            # Keyword filtering if keywords provided
             if keywords:
                 kw_list = [kw.lower() for kw in keywords]
 
@@ -253,18 +263,18 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                         full_text = " ".join(doc.page_content for doc in docs).lower()
 
                         if not keyword_match(full_text):
-                            continue  # no match, skip article
+                            continue  # skip article if no match
 
                     except Exception as e:
                         logging.warning(f"UnstructuredURLLoader failed for {entry.link}: {e}")
                         continue
 
-            # Add relevant article
+            # Append the relevant article
             articles.append({
                 'Keyword': " ".join(keywords) if keywords else source,
                 'Headline': headline,
                 'URL': entry.link,
-                'Published on': published_at,
+                'Published on': published_dt.date() if published_dt else None,
                 'Source': "Preferred sources",
                 'HasExpandedKeyword': True
             })
@@ -273,7 +283,6 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         logging.error(f"RSS fetch failed for {source}: {e}")
 
     return articles
-
 def extract_article_text(url):
     try:
         loader = UnstructuredURLLoader(urls=[url])
@@ -319,7 +328,7 @@ if submitted:
                 direct = fetch_direct_rss(
                     source=src,
                     rss_url=rss_url,
-                    max_articles=max_articles,
+                    max_articles=1000,
                     keywords=keywords,
                     timeline_choice=timeline_choice,
                     start_date=start_date,
@@ -360,7 +369,7 @@ if submitted:
                     direct = fetch_direct_rss(
                         source=src,
                         rss_url=rss_url,
-                        max_articles=max_articles,
+                        max_articles=1000,
                         keywords=expanded_keywords,
                         timeline_choice=timeline_choice,
                         start_date=start_date,
