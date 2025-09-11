@@ -290,24 +290,44 @@ def get_related_keywords(keyword, top_n=5):
     try:
         generator = load_local_model()
         prompt = (
-            f"List {top_n} important biotech or pharmaceutical keywords related to '{keyword}'. "
-            f"Only give a comma-separated list."
+            f"Give {top_n} keywords related to this'{keyword}'. "
+            "Only return a clean comma-separated list of keywords. No explanations."
         )
 
-        outputs = generator(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-        text = outputs[0]["generated_text"].strip()
+        output = generator(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
+        text = output[0]["generated_text"]
 
-        print(f"[DEBUG] Output for '{keyword}':", text)
+        # Debug
+        print(f"[DEBUG] Model output: {text}")
 
-        # Extract and clean keywords
-        keywords = re.split(r'[,\n]', text)
-        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
-        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        # Try to extract the list from the output
+        # Remove the original prompt portion
+        text = text.replace(prompt, "").strip()
 
-        return list(dict.fromkeys(keywords))[:top_n]
+        # Extract only the first line that looks like keywords
+        first_line = text.split('\n')[0]
+
+        # Clean and split by comma
+        keywords = re.split(r',\s*', first_line)
+        keywords = [kw.strip() for kw in keywords if kw.strip()]
+
+        # Remove anything that includes the original keyword (redundant)
+        keywords = [kw for kw in keywords if keyword.lower() not in kw.lower()]
+
+        # Deduplicate
+        seen = set()
+        final_keywords = []
+        for kw in keywords:
+            if kw.lower() not in seen:
+                seen.add(kw.lower())
+                final_keywords.append(kw)
+            if len(final_keywords) >= top_n:
+                break
+
+        return final_keywords
 
     except Exception as e:
-        logging.error(f"Local LLM keyword generation failed for {keyword}: {e}")
+        logging.error(f"Keyword generation failed for '{keyword}': {e}")
         return []
 
 
