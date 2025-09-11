@@ -40,7 +40,7 @@ CATEGORIES = {
 @st.cache_resource(show_spinner=False)
 def load_hf_llm():
     return InferenceClient(
-        model="google/flan-t5-large",
+        model="gpt2",
         token=st.secrets["huggingface"]["api_key"]
     )
 
