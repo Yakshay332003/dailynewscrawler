@@ -19,6 +19,7 @@ from huggingface_hub import InferenceClient
 from langchain.document_loaders import UnstructuredURLLoader  # used in extract_article_text
 import re
 from html import unescape
+from huggingface_hub import InferenceClient
 def clean_html(text):
     """Simple HTML cleaner (you may already have this)."""
     return unescape(BeautifulSoup(text, "html.parser").get_text())
@@ -36,11 +37,13 @@ CATEGORIES = {
     "Financials": ['earnings', 'revenue', 'profit', 'loss', 'q1', 'q2', 'quarter', 'forecast', 'financial'],
 }
 
-def load_gemini_model():
-    # expects st.secrets["gemini"]["api_key"] to be set
-    genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-2.5-pro")  # or "gemini-1.5-pro"
-    return model
+@st.cache_resource(show_spinner=False)
+def load_hf_llm():
+    return InferenceClient(
+        model="mistralai/Mistral-7B-Instruct-v0.2",
+        token=st.secrets["huggingface"]["api_key"]
+    )
+
 
 @st.cache_resource(show_spinner=False)
 def load_sentence_model():
@@ -105,24 +108,7 @@ def classify_with_embeddings(headline):
     max_sim = similarities[max_idx]
     return category_names[max_idx] if max_sim > 0.3 else "Other"
 
-def get_related_keywords(keyword, top_n=5):
-    try:
-        gem = load_gemini_model()
-        prompt = (
-            f"If '{keyword}' is not a company name, list {top_n} distinct, domain-specific keywords related to '{keyword}'. "
-            f"If '{keyword}' is a company name, give the full company name and list any known subsidiaries. "
-            f"Respond with a comma-separated list only."
-        )
-        response = gem.generate_content(prompt)
-        text = response.text.strip()
-        # parse
-        keywords = re.split(r'[,\n]', text)
-        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
-        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
-        return list(dict.fromkeys(keywords))[:top_n]
-    except Exception as e:
-        logging.error(f"Gemini keyword generation failed for {keyword}: {e}")
-        return []
+
 
 def fetch_latest_headlines_rss(keyword, max_articles=100, timeline_choice="All", start_date=None, end_date=None):
     """
@@ -328,6 +314,34 @@ with st.form("fetch_form"):
         start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
         end_date = st.date_input("To Date", value=datetime.now().date())
     submitted = st.form_submit_button("Fetch News")
+def get_related_keywords(keyword, top_n=5):
+    try:
+        client = load_hf_llm()
+        prompt = (
+            f"You are an expert in biotech and pharma domains.\n"
+            f"If '{keyword}' is not a company name, list {top_n} domain-specific keywords related to it.\n"
+            f"If it's a company, provide the full name and known subsidiaries.\n"
+            f"Respond ONLY with a comma-separated list."
+        )
+
+        response = client.text_generation(
+            prompt,
+            max_new_tokens=100,
+            temperature=0.7,
+            do_sample=True,
+        )
+
+        text = response.strip()
+
+        # Clean and extract comma-separated keywords
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
+
+    except Exception as e:
+        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
+        return []
 
 # Fetch Articles
 if submitted:
