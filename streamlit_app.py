@@ -40,8 +40,8 @@ CATEGORIES = {
 @st.cache_resource(show_spinner=False)
 def load_hf_llm():
     return InferenceClient(
-        model="google/flan-t5-large",
-        token=st.secrets["huggingface"]["api_key"]
+        model="gpt2"
+        #token=st.secrets["huggingface"]["api_key"]
     )
 
 
@@ -288,29 +288,35 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
 
     return articles
 def get_related_keywords(keyword, top_n=5):
-    
-    client = load_hf_llm()
-    prompt = (
-            f"If '{keyword}' is not a company name, list {top_n} domain-specific keywords related to it. "
-            f"If it is a company name, list the full name and any known subsidiaries. "
-            f"Only return a comma-separated list."
+    try:
+        client = load_hf_llm()
+
+        prompt = (
+            f"List {top_n} domain-specific keywords related to '{keyword}' in pharma or biotech. "
+            f"Return a comma-separated list only."
         )
 
-    response = client.text_generation(
-    prompt,
-    max_new_tokens=100,
-    temperature=0.7,
-    do_sample=True,
-)
-    text = response.get("generated_text", "").strip()
+        response = client.text_generation(
+            prompt,
+            max_new_tokens=60,
+            temperature=0.7,
+            do_sample=True,
+        )
 
-    
-    keywords = re.split(r'[,\n]', text)
-    keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
-    keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
-    return list(dict.fromkeys(keywords))[:top_n]
+        text = response.get("generated_text", "") if isinstance(response, dict) else response
+        text = text.strip()
 
-    
+        # Log raw output
+        print(f"[{keyword}] → Raw output: {text}")
+
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
+
+    except Exception as e:
+        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
+        return []
 
 
 def extract_article_text(url):
