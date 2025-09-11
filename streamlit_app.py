@@ -311,7 +311,7 @@ def get_related_keywords(keyword, top_n=5):
         return list(dict.fromkeys(keywords))[:top_n]
 
     except Exception as e:
-        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
+        st.write(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
         return []
 
 
