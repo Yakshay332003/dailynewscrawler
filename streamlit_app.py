@@ -466,7 +466,9 @@ if 'articles_df' in st.session_state:
     with col1:
         keyword_filter = st.selectbox("🔑 Keyword", options=["All"] + available_keywords)
     with col2:
-        source_filter = st.selectbox("🔗 Source", options=["All"] + available_sources)
+        default_source = "Preferred sources" if "Preferred sources" in available_sources else "All"
+        source_filter = st.selectbox("🔗 Source", options=["All"] + available_sources, index=(["All"] + available_sources).index(default_source))
+
 
     col3, _ = st.columns(2)
     with col3:
