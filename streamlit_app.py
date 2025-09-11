@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import feedparser
 import requests
+from transformers import pipeline
 import re
 from urllib.parse import quote
 import logging
@@ -38,11 +39,9 @@ CATEGORIES = {
 }
 
 @st.cache_resource(show_spinner=False)
-def load_hf_llm():
-    return InferenceClient(
-        model="gpt2"
-        #token=st.secrets["huggingface"]["api_key"]
-    )
+def load_local_model():
+    # Use "gpt2", "distilgpt2", or mistral if you have the hardware
+    return pipeline("text-generation", model="gpt2")  
 
 
 @st.cache_resource(show_spinner=False)
@@ -289,35 +288,30 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
     return articles
 def get_related_keywords(keyword, top_n=5):
     try:
-        client = load_hf_llm()
-
+        generator = load_local_model()
         prompt = (
-            f"List {top_n} domain-specific keywords related to '{keyword}' in pharma or biotech. "
-            f"Return a comma-separated list only."
+            f"List {top_n} important biotech or pharmaceutical keywords related to '{keyword}'. "
+            f"Only give a comma-separated list."
         )
 
-        response = client.text_generation(
-            prompt,
-            max_new_tokens=60,
-            temperature=0.7,
-            do_sample=True,
-        )
+        outputs = generator(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
+        text = outputs[0]["generated_text"].strip()
 
-        text = response.get("generated_text", "") if isinstance(response, dict) else response
-        text = text.strip()
+        print(f"[DEBUG] Output for '{keyword}':", text)
 
-        # Log raw output
-        print(f"[{keyword}] → Raw output: {text}")
-
+        # Extract and clean keywords
         keywords = re.split(r'[,\n]', text)
         keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
         keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+
         return list(dict.fromkeys(keywords))[:top_n]
 
     except Exception as e:
-        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
+        logging.error(f"Local LLM keyword generation failed for {keyword}: {e}")
         return []
 
+
+        
 
 def extract_article_text(url):
     try:
