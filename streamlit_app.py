@@ -39,9 +39,11 @@ CATEGORIES = {
 }
 
 @st.cache_resource(show_spinner=False)
-def load_local_model():
-    # Use "gpt2", "distilgpt2", or mistral if you have the hardware
-    return pipeline("text-generation", model="gpt2")  
+def load_gemini_model():
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model = genai.GenerativeModel("gemini-2.5-pro")  # or "gemini-1.5-pro"
+    return model
+
 
 
 @st.cache_resource(show_spinner=False)
@@ -49,6 +51,7 @@ def load_sentence_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 model = load_sentence_model()
+
 
 category_texts = {cat: " ".join(words) for cat, words in CATEGORIES.items()}
 category_embeddings = model.encode(list(category_texts.values()))
@@ -95,6 +98,32 @@ preferred_sources1 = [
 # -------------------------------
 # --- Helper Functions
 # -------------------------------
+def get_related_keywords(keyword, top_n=5):
+    try:
+        model = load_gemini_model()
+
+        prompt = (
+    f" if the {keyword} is not the company name then List {top_n} distinct, domain-specific keywords related to '{keyword}'  "
+    
+    f"If '{keyword}' is a company name,Give full company name and also provide  all subsidiaries under that company. "
+    
+    f"Respond with a comma-separated list only."
+)
+
+
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        print("Gemini raw response:", text)
+
+        # Parse the keywords
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
+
+    except Exception as e:
+        logging.error(f"Gemini keyword generation failed for {keyword}: {e}")
+        return []
 def source_priority(source):
     source_lower = str(source).lower()
     return 0 if any(pref in source_lower for pref in preferred_sources1) else 1
@@ -286,50 +315,6 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         logging.error(f"RSS fetch failed for {source}: {e}")
 
     return articles
-def get_related_keywords(keyword, top_n=5):
-    try:
-        generator = load_local_model()
-        prompt = (
-            f"Give {top_n} keywords related to this'{keyword}'. "
-            "Only return a clean comma-separated list of keywords. No explanations."
-        )
-
-        output = generator(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-        text = output[0]["generated_text"]
-
-        # Debug
-        print(f"[DEBUG] Model output: {text}")
-
-        # Try to extract the list from the output
-        # Remove the original prompt portion
-        text = text.replace(prompt, "").strip()
-
-        # Extract only the first line that looks like keywords
-        first_line = text.split('\n')[0]
-
-        # Clean and split by comma
-        keywords = re.split(r',\s*', first_line)
-        keywords = [kw.strip() for kw in keywords if kw.strip()]
-
-        # Remove anything that includes the original keyword (redundant)
-        keywords = [kw for kw in keywords if keyword.lower() not in kw.lower()]
-
-        # Deduplicate
-        seen = set()
-        final_keywords = []
-        for kw in keywords:
-            if kw.lower() not in seen:
-                seen.add(kw.lower())
-                final_keywords.append(kw)
-            if len(final_keywords) >= top_n:
-                break
-
-        return final_keywords
-
-    except Exception as e:
-        logging.error(f"Keyword generation failed for '{keyword}': {e}")
-        return []
-
 
         
 
