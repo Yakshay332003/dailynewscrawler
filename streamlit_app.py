@@ -95,7 +95,7 @@ preferred_sources1 = [
 # -------------------------------
 def source_priority(source):
     source_lower = str(source).lower()
-    return 0 if any(pref in source_lower for pref in preferred_sources) else 1
+    return 0 if any(pref in source_lower for pref in preferred_sources1) else 1
 
 def classify_with_embeddings(headline):
     text = re.sub(r'[^a-z\s]', '', str(headline).lower())
@@ -445,7 +445,12 @@ if submitted:
     df=df.head(max_articles)
 
     st.session_state['articles_df'] = df
-    st.session_state['filtered_df'] = df
+    if "Preferred sources" in list(df['Source']):
+        filtered_df = df[df['Source'] == 'Preferred sources']
+        st.session_state['filtered_df'] = filtered_df
+    else:
+        
+        st.session_state['filtered_df'] = df
 
 # Display Section
 if 'articles_df' in st.session_state:
