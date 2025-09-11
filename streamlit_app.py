@@ -69,6 +69,26 @@ SOURCE_FEEDS = {
 }
 
 preferred_sources = list(SOURCE_FEEDS.keys())+list("Preferred sources")
+preferred_sources1 = [
+    'fierce pharma',
+    'biopharma dive',
+    'contract pharma',
+    'fierce biotech',
+    'pharmavoice',
+    'biospace',
+    'pharmaceutical technology',
+    'endpoints news',
+    'life science leader',
+'crunchbase news',
+    'endpoints news',
+    'pharmavoice',
+    'insights.siteline',
+    'pharmaceutical technology',
+    'life science leader',
+
+    
+]
+
 
 # -------------------------------
 # --- Helper Functions
@@ -299,7 +319,7 @@ st.title("📰 Hunt News by Keyword ")
 # Input Section
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
-    max_articles = st.number_input("Max articles to display  (up to 1000)", min_value=10, max_value=1000, value=100, step=10)
+    max_articles = st.number_input("Max articles to display  (up to 5000)", min_value=10, max_value=5000, value=100, step=10)
     timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range", "All"])
     search_mode = st.radio("🔎 Search Mode", ["Individual keywords (OR)", "All keywords together (AND)"], index=0)
 
@@ -411,7 +431,7 @@ if submitted:
     # Category classification and priority
     df['Category'] = df['Headline'].apply(classify_with_embeddings)
     df['priority'] = df['Source'].apply(source_priority)
-    df['Source']=np.where(df['Source'].isin(preferred_sources),"Preferred sources",df['Source'])
+    df['Source']=np.where(df['Source'].isin(preferred_sources1),"Preferred sources",df['Source'])
 
    
     df = df.sort_values(by=['priority','HasExpandedKeyword', 'Published on'], ascending=[True,False, False])
@@ -422,6 +442,7 @@ if submitted:
     
 
     df = df.drop_duplicates(subset=['Headline'])
+    df=df.head(max_articles)
 
     st.session_state['articles_df'] = df
     st.session_state['filtered_df'] = df
