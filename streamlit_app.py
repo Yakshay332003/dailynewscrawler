@@ -336,7 +336,7 @@ st.title("📰 Hunt News by Keyword ")
 with st.form("fetch_form"):
     keywords_input = st.text_area("🔍 Enter keywords (comma-separated)", placeholder="e.g., Pfizer, biotech, gene therapy")
     max_articles = st.number_input("Max articles to display  (up to 5000)", min_value=10, max_value=5000, value=100, step=10)
-    timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range", "All"])
+    timeline_choice = st.selectbox("📆 Fetch Timeline", [ "Today", "Yesterday", "Last 7 Days", "Last 1 Month", "Custom Range", "All"],index=3)
     search_mode = st.radio("🔎 Search Mode", ["Individual keywords (OR)", "All keywords together (AND)"], index=0)
 
     start_date = end_date = None
