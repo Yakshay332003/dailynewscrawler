@@ -303,7 +303,7 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
                 
 
             articles.append({
-                'Keyword': "Entered Keyword",
+                'Keyword': "All",
                 'Headline': headline,
                 'URL': entry.link,
                 'Published on': published_dt.date() if published_dt else None,
