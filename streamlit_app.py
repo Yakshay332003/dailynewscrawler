@@ -297,14 +297,14 @@ def get_related_keywords(keyword, top_n=5):
         )
 
     response = client.text_generation(
-            prompt,
-            max_new_tokens=100,
-            temperature=0.7,
-            do_sample=True,
-        )
-    print("Raw HF response:", response)  # DEBUG LOG
+    prompt,
+    max_new_tokens=100,
+    temperature=0.7,
+    do_sample=True,
+)
+    text = response.get("generated_text", "").strip()
 
-    text = response.strip()
+    
     keywords = re.split(r'[,\n]', text)
     keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
     keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
