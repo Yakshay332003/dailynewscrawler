@@ -287,6 +287,36 @@ def fetch_direct_rss(source, rss_url, max_articles=100, keywords=None,
         logging.error(f"RSS fetch failed for {source}: {e}")
 
     return articles
+def get_related_keywords(keyword, top_n=5):
+    try:
+        client = load_hf_llm()
+        prompt = (
+            f"You are an expert in biotech and pharma domains.\n"
+            f"If '{keyword}' is not a company name, list {top_n} domain-specific keywords related to it.\n"
+            f"If it's a company, provide the full name and known subsidiaries.\n"
+            f"Respond ONLY with a comma-separated list."
+        )
+
+        # Use the conversational endpoint instead of text_generation
+        response = client.conversational(
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_new_tokens=100,
+            temperature=0.7,
+        )
+
+        text = response.strip()
+
+        # Clean and extract comma-separated keywords
+        keywords = re.split(r'[,\n]', text)
+        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
+        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
+        return list(dict.fromkeys(keywords))[:top_n]
+
+    except Exception as e:
+        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
+        return []
 
 def extract_article_text(url):
     try:
@@ -314,34 +344,7 @@ with st.form("fetch_form"):
         start_date = st.date_input("From Date", value=datetime.now().date() - timedelta(days=7))
         end_date = st.date_input("To Date", value=datetime.now().date())
     submitted = st.form_submit_button("Fetch News")
-def get_related_keywords(keyword, top_n=5):
-    try:
-        client = load_hf_llm()
-        prompt = (
-            f"You are an expert in biotech and pharma domains.\n"
-            f"If '{keyword}' is not a company name, list {top_n} domain-specific keywords related to it.\n"
-            f"If it's a company, provide the full name and known subsidiaries.\n"
-            f"Respond ONLY with a comma-separated list."
-        )
 
-        response = client.text_generation(
-            prompt,
-            max_new_tokens=100,
-            temperature=0.7,
-            do_sample=True,
-        )
-
-        text = response.strip()
-
-        # Clean and extract comma-separated keywords
-        keywords = re.split(r'[,\n]', text)
-        keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
-        keywords = [kw for kw in keywords if kw and keyword.lower() not in kw.lower()]
-        return list(dict.fromkeys(keywords))[:top_n]
-
-    except Exception as e:
-        logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
-        return []
 
 # Fetch Articles
 if submitted:
