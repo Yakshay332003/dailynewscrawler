@@ -302,8 +302,8 @@ def get_related_keywords(keyword, top_n=5):
             temperature=0.7,
             do_sample=True,
         )
+        print("Raw HF response:", response)  # DEBUG LOG
 
-        # Clean and extract comma-separated keywords
         text = response.strip()
         keywords = re.split(r'[,\n]', text)
         keywords = [re.sub(r'^\d+\.?\s*', '', kw.strip()) for kw in keywords]
@@ -313,6 +313,7 @@ def get_related_keywords(keyword, top_n=5):
     except Exception as e:
         logging.error(f"Hugging Face LLM keyword generation failed for {keyword}: {e}")
         return []
+
 
 def extract_article_text(url):
     try:
